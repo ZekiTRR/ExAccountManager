@@ -1,0 +1,34 @@
+# Build outputs
+build/
+build-*/
+out/
+dist/
+/*.obj
+/*.exe
+*.pdb
+*.ilk
+*.exp
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+CMakeSettings.json
+
+# CMake
+CMakeUserPresets.json
+
+# Runtime artifacts (never commit user data)
+*.db
+*.db-wal
+*.db-shm
+*.bak
+*.backup
+logs/
+backups/
+exports/
+
+# OS
+Thumbs.db
+Desktop.ini

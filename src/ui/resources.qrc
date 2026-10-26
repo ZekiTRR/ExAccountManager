@@ -1,0 +1,47 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="accounts.svg">assets/icons/accounts.svg</file>
+        <file alias="alert.svg">assets/icons/alert.svg</file>
+        <file alias="analytics.svg">assets/icons/analytics.svg</file>
+        <file alias="check.svg">assets/icons/check.svg</file>
+        <file alias="chevron-down.svg">assets/icons/chevron-down.svg</file>
+        <file alias="chevron-right.svg">assets/icons/chevron-right.svg</file>
+        <file alias="clock.svg">assets/icons/clock.svg</file>
+        <file alias="close.svg">assets/icons/close.svg</file>
+        <file alias="cookie.svg">assets/icons/cookie.svg</file>
+        <file alias="cpu.svg">assets/icons/cpu.svg</file>
+        <file alias="eye-off.svg">assets/icons/eye-off.svg</file>
+        <file alias="eye.svg">assets/icons/eye.svg</file>
+        <file alias="file.svg">assets/icons/file.svg</file>
+        <file alias="focus.svg">assets/icons/focus.svg</file>
+        <file alias="folder.svg">assets/icons/folder.svg</file>
+        <file alias="gamepad.svg">assets/icons/gamepad.svg</file>
+        <file alias="grid.svg">assets/icons/grid.svg</file>
+        <file alias="hourglass.svg">assets/icons/hourglass.svg</file>
+        <file alias="info.svg">assets/icons/info.svg</file>
+        <file alias="instances.svg">assets/icons/instances.svg</file>
+        <file alias="link.svg">assets/icons/link.svg</file>
+        <file alias="lock.svg">assets/icons/lock.svg</file>
+        <file alias="minus.svg">assets/icons/minus.svg</file>
+        <file alias="moon.svg">assets/icons/moon.svg</file>
+        <file alias="more.svg">assets/icons/more.svg</file>
+        <file alias="play-filled.svg">assets/icons/play-filled.svg</file>
+        <file alias="plus.svg">assets/icons/plus.svg</file>
+        <file alias="power.svg">assets/icons/power.svg</file>
+        <file alias="ram.svg">assets/icons/ram.svg</file>
+        <file alias="refresh.svg">assets/icons/refresh.svg</file>
+        <file alias="save.svg">assets/icons/save.svg</file>
+        <file alias="search.svg">assets/icons/search.svg</file>
+        <file alias="server.svg">assets/icons/server.svg</file>
+        <file alias="settings.svg">assets/icons/settings.svg</file>
+        <file alias="shield.svg">assets/icons/shield.svg</file>
+        <file alias="star-filled.svg">assets/icons/star-filled.svg</file>
+        <file alias="star.svg">assets/icons/star.svg</file>
+        <file alias="sun.svg">assets/icons/sun.svg</file>
+        <file alias="terminal.svg">assets/icons/terminal.svg</file>
+        <file alias="trash.svg">assets/icons/trash.svg</file>
+        <file alias="trend.svg">assets/icons/trend.svg</file>
+        <file alias="upload.svg">assets/icons/upload.svg</file>
+        <file alias="user-plus.svg">assets/icons/user-plus.svg</file>
+    </qresource>
+</RCC>

@@ -72,8 +72,8 @@ QList<RobloxInstallation> robloxInstallations()
         }
     }
 
-    // Обработчик может указывать на кастомную сборку вне стандартных
-    // Versions (WEAO и т.п.) — показываем её RobloxPlayerBeta в списке.
+    // The handler may point at a custom build outside the standard
+    // Versions (WEAO etc.) — show its RobloxPlayerBeta in the list.
     const QString registered = registeredRobloxPlayer();
     if (!registered.isEmpty()) {
         const QFileInfo handler(registered);

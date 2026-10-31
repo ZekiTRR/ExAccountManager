@@ -15,7 +15,7 @@ namespace ex::util::fs {
 
 bool writeAtomic(const QString& path, const QByteArray& data)
 {
-    // QSaveFile уже реализует tmp+rename атомарно; fsync делаем руками через flush()
+    // QSaveFile already does tmp+rename atomically; fsync by hand through flush()
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly)) {
         log::warn("fs") << "writeAtomic: cannot open" << path << ":" << f.errorString();
@@ -95,7 +95,7 @@ bool backupFile(const QString& path, const QString& backupsDir, int keep)
         log::warn("fs") << "backup: copy failed" << path << "->" << dest;
         return false;
     }
-    // Ротация: удалить самые старые сверх keep
+    // Rotation: delete the oldest files beyond keep
     const QStringList entries = QDir(backupsDir)
         .entryList({info.fileName() + QStringLiteral(".*.bak")}, QDir::Files, QDir::Name);
     for (int i = 0; i < entries.size() - keep; ++i)

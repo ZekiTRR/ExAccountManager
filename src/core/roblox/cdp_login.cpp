@@ -25,16 +25,16 @@ namespace ex::roblox {
 using Status = CdpLoginSession::Status;
 
 namespace {
-constexpr int kDevToolsTimeoutMs = 20000;  // ждём порт после старта браузера
-constexpr int kFillMaxAttempts = 20;       // 30 с на гидрацию React
-constexpr int kLoginTimeoutMs = 10 * 60 * 1000; // 10 минут на капчу/2FA
+constexpr int kDevToolsTimeoutMs = 20000;  // waiting for the port after the browser starts
+constexpr int kFillMaxAttempts = 20;       // 30 s for React hydration
+constexpr int kLoginTimeoutMs = 10 * 60 * 1000; // 10 minutes for captcha/2FA
 constexpr int kPollIntervalMs = 1500;
 
-// JS автозаполнения: React-контролируемые инпуты требуют нативный setter
-// + событие input (иначе значение не попадает в state).
+// Autofill JS: React-controlled inputs need the native setter
+// + an input event (otherwise the value never reaches state).
 QString buildFillScript(const QString& username, const QString& password)
 {
-    // Значения — как JSON-массив (корректное экранирование кавычек/слэшей)
+    // Values as a JSON array (quotes and slashes escaped properly)
     const QByteArray creds = QJsonDocument(QJsonArray{username, password}).toJson(QJsonDocument::Compact);
     return QStringLiteral(R"(
 (function(){
@@ -89,9 +89,9 @@ CdpLoginSession::CdpLoginSession(QObject* parent)
         const QJsonObject o = QJsonDocument::fromJson(msg.toUtf8()).object();
         const int id = o[QStringLiteral("id")].toInt(-1);
         if (id < 0) {
-            // Событие Network.* — механика перехвата из C# RAM:
-            // ждём успешный POST на auth.roblox.com/v2/login (или 2FA/signup),
-            // ТОЛЬКО после него берём cookie (иначе ловится гостевая сессия).
+            // Network.* events — capture mechanics from C# RAM:
+            // wait for a successful POST to auth.roblox.com/v2/login (or 2FA/signup),
+            // Take the cookie ONLY after it (otherwise a guest session is captured).
             const QString method = o[QStringLiteral("method")].toString();
             const QJsonObject params = o[QStringLiteral("params")].toObject();
             if (method == QLatin1String("Network.requestWillBeSent")) {
@@ -119,7 +119,7 @@ CdpLoginSession::CdpLoginSession(QObject* parent)
                 if (m_okLoginIds.contains(requestId) && !m_sawLoginFinish) {
                     m_sawLoginFinish = true;
                     EXLOG_INFO("cdp") << "successful login request finished — capturing cookie";
-                    // Полсекунды на применение Set-Cookie и навигацию страницы
+                    // Half a second for Set-Cookie to apply and the page to navigate
                     QTimer::singleShot(500, this, [this]() {
                         if (!m_done && m_sawLoginFinish)
                             fetchAccountJsonAndCapture();
@@ -159,7 +159,7 @@ QStringList CdpLoginSession::baseArgs() const
 {
     QStringList args{
         QStringLiteral("--user-data-dir=%1").arg(m_userDataDir),
-        QStringLiteral("--remote-debugging-port=0"), // авто-порт -> DevToolsActivePort
+        QStringLiteral("--remote-debugging-port=0"), // auto port -> DevToolsActivePort
         QStringLiteral("--no-first-run"),
         QStringLiteral("--no-default-browser-check"),
         QStringLiteral("--disable-sync"),
@@ -176,7 +176,7 @@ QStringList CdpLoginSession::baseArgs() const
 
 QStringList CdpLoginSession::minimalArgs() const
 {
-    // Ретрай после мгновенного выхода: только необходимое.
+    // Retry after an instant exit: minimal flags only.
     return {
         QStringLiteral("--user-data-dir=%1").arg(m_userDataDir),
         QStringLiteral("--remote-debugging-port=0"),
@@ -187,8 +187,8 @@ QStringList CdpLoginSession::minimalArgs() const
 void CdpLoginSession::startBrowser(const QStringList& args)
 {
     if (ex::platform::isElevated()) {
-        // Chrome 136+ отказывается от remote debugging в повышенном
-        // контексте — запускаем браузер от токена explorer (RAM-приём).
+        // Chrome 136+ refuses remote debugging in an elevated
+        // context — so the browser starts from the explorer token (RAM approach).
         m_deelevatedHandle = ex::platform::launchDeelevated(m_browserPath, args, m_userDataDir);
         if (!m_deelevatedHandle) {
             EXLOG_WARN("cdp") << "deelevated launch failed, falling back to QProcess";
@@ -238,7 +238,7 @@ void CdpLoginSession::start(const QString& browserPath, const CdpLoginRequest& r
     m_done = false;
     setStatus(Status::StartingBrowser, QString());
 
-    // Временный профиль: каждая сессия изолирована (RAM-подход)
+    // Temporary profile: every session is isolated (RAM approach)
     m_userDataDir = ex::util::AppPaths::cacheDir()
         + QStringLiteral("/cdp/%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
     QDir().mkpath(m_userDataDir);
@@ -249,7 +249,7 @@ void CdpLoginSession::start(const QString& browserPath, const CdpLoginRequest& r
     });
     connect(&m_browser, &QProcess::finished, this, [this](int code, QProcess::ExitStatus) {
         if (!m_done && m_status == Status::StartingBrowser) {
-            // pollDevToolsPort разберётся (ретрай / финальная ошибка)
+            // pollDevToolsPort sorts it out (retry / final error)
             m_lastExitCode = static_cast<unsigned long>(code);
             return;
         }
@@ -259,7 +259,7 @@ void CdpLoginSession::start(const QString& browserPath, const CdpLoginRequest& r
 
     startBrowser(baseArgs());
 
-    // Ждём файл DevToolsActivePort
+    // Wait for the DevToolsActivePort file
     m_pollTimer.setInterval(kPollIntervalMs / 3);
     m_totalMs = 0;
     connect(&m_pollTimer, &QTimer::timeout, this, &CdpLoginSession::pollDevToolsPort);
@@ -269,7 +269,7 @@ void CdpLoginSession::start(const QString& browserPath, const CdpLoginRequest& r
 void CdpLoginSession::setStatus(Status s, const QString& detail)
 {
     if (m_done)
-        return; // терминальное состояние одно-way
+        return; // terminal state is one-way
     m_status = s;
     EXLOG_INFO("cdp") << "session" << m_request.username << "status" << static_cast<int>(s) << detail;
     emit statusChanged(s, detail);
@@ -283,7 +283,7 @@ void CdpLoginSession::setStatus(Status s, const QString& detail)
     m_callbacks.clear();
     m_ws.close();
     stopBrowser();
-    // Удалить временный профиль (2 попытки — файлы освобождаются не мгновенно)
+    // Delete the temporary profile (2 tries — files are not freed instantly)
     if (!m_userDataDir.isEmpty()) {
         if (!QDir(m_userDataDir).removeRecursively())
             QTimer::singleShot(2000, this, [dir = m_userDataDir]() { QDir(dir).removeRecursively(); });
@@ -297,10 +297,10 @@ void CdpLoginSession::pollDevToolsPort()
 {
     m_totalMs += m_pollTimer.interval();
 
-    // Браузер умер до появления DevToolsActivePort?
+    // Did the browser die before DevToolsActivePort appear?
     unsigned long exitCode = 0;
     if (!browserAlive(&exitCode)) {
-        // Ретрай с минимальными флагами (защита от капризных версий браузера)
+        // Retry with minimal flags (guards against moody browser versions)
         if (!m_retriedMinimal) {
             m_retriedMinimal = true;
             m_lastExitCode = exitCode;
@@ -359,7 +359,7 @@ void CdpLoginSession::fetchTargetList()
                 return;
             }
         }
-        // Целевой вкладки ещё нет — повтор через секунду
+        // The target tab does not exist yet — retry in a second
         QTimer::singleShot(1000, this, &CdpLoginSession::fetchTargetList);
     });
 }
@@ -394,9 +394,9 @@ void CdpLoginSession::tryFillForm()
         return;
     setStatus(Status::FillingForm, QString());
 
-    // Включаем Network-домен (нужен для Network.getCookies)
+    // Enable the Network domain (needed for Network.getCookies)
     sendCommand(QStringLiteral("Network.enable"), {}, [this](const QJsonObject&) {
-        // Стартуем опрос cookie (найдёт и уже существующую сессию)
+        // Start polling for the cookie (also finds an existing session)
         m_pollTimer.stop();
         m_pollTimer.disconnect(this);
         connect(&m_pollTimer, &QTimer::timeout, this, &CdpLoginSession::pollCookies);
@@ -405,7 +405,7 @@ void CdpLoginSession::tryFillForm()
         pollCookies();
     });
 
-    // Автозаполнение с повторами (React может ещё не гидрироваться)
+    // Repeat form autofill (React may not be hydrated yet)
     sendCommand(QStringLiteral("Runtime.evaluate"),
                 {{QStringLiteral("expression"), buildFillScript(m_request.username, m_request.password)},
                  {QStringLiteral("returnByValue"), true}},
@@ -413,7 +413,7 @@ void CdpLoginSession::tryFillForm()
         const QString value = result[QStringLiteral("result")].toObject()
                                   [QStringLiteral("value")].toString();
         if (value == QLatin1String("filled-button")) {
-            // Форма заполнена — жмём кнопку входа
+            // Form is filled — press the login button
             sendCommand(QStringLiteral("Runtime.evaluate"),
                         {{QStringLiteral("expression"), buildClickScript()},
                          {QStringLiteral("returnByValue"), true}},
@@ -426,7 +426,7 @@ void CdpLoginSession::tryFillForm()
         } else if (value.startsWith(QLatin1String("js-error"))) {
             setStatus(Status::Failed, value);
         } else {
-            // filled без кнопки — пользователь нажмёт сам
+            // filled button — the user presses play themselves
             setStatus(Status::WaitingForUser, QStringLiteral("manual-click"));
         }
     });
@@ -443,7 +443,7 @@ void CdpLoginSession::pollCookies()
                       .arg(kLoginTimeoutMs / 60000));
         return;
     }
-    // До успешного POST логина cookie в jar может быть гостевым — не берём
+    // Before a successful login POST the jar cookie may be a guest one — skip it
     if (!m_sawLoginFinish)
         return;
 
@@ -456,9 +456,9 @@ void CdpLoginSession::fetchAccountJsonAndCapture()
         return;
     m_captureInFlight = true;
 
-    // Паттерн C# RAM (AccountBrowser.cs:329): данные аккаунта берём
-    // fetch('/my/account/json') ИЗ САМОЙ СТРАНИЦЫ — сессия браузера
-    // авторизована, ответ гарантированно корректен.
+    // C# RAM pattern (AccountBrowser.cs:329): account data comes
+    // fetch('/my/account/json') FROM THE PAGE ITSELF — the browser session
+    // is authorized, so the answer is trustworthy.
     sendCommand(QStringLiteral("Runtime.evaluate"),
                 {{QStringLiteral("expression"),
                   QStringLiteral(
@@ -471,11 +471,11 @@ void CdpLoginSession::fetchAccountJsonAndCapture()
             m_captureInFlight = false;
             return;
         }
-        // исключение внутри страницы -> result.exceptionDetails
+        // an exception inside the page -> result.exceptionDetails
         if (result.contains(QStringLiteral("exceptionDetails"))) {
             EXLOG_INFO("cdp") << "account fetch not ready yet (login pending)";
             m_captureInFlight = false;
-            return; // следующий тик таймера повторит
+            return; // the next timer tick retries
         }
         const QJsonObject value = result[QStringLiteral("result")].toObject();
         if (value[QStringLiteral("type")].toString() != QLatin1String("string")) {
@@ -494,9 +494,9 @@ void CdpLoginSession::fetchAccountJsonAndCapture()
         const QString display = info[QStringLiteral("DisplayName")].toString();
         EXLOG_INFO("cdp") << "account json ok: user id" << userId;
 
-        // RAM/CEF-подход: cookie берём из cookie jar браузера и используем
-        // снаружи. In-page ticket script в Chrome/Edge упирается в CORS и
-        // не нужен — тикет получает наш HTTP-клиент (RAM-последовательность).
+        // RAM/CEF approach: take the cookie from the browser jar and use it
+        // from outside. An in-page ticket script hits CORS in Chrome/Edge and
+        // is not needed — our HTTP client gets the ticket (RAM sequence).
         captureCookieFromJar(userId, name.isEmpty() ? display : name,
                              display.isEmpty() ? name : display);
     });
@@ -522,8 +522,8 @@ void CdpLoginSession::captureCookieFromJar(qint64 userId, const QString& realUse
                               << c[QStringLiteral("domain")].toString()
                               << "path" << c[QStringLiteral("path")].toString()
                               << "len" << raw.size();
-            // Если в jar несколько одноимённых cookie (host-only и .roblox.com),
-            // берём самое длинное значение — это авторизованная сессия.
+            // If the jar holds several cookies with the same name (host-only and .roblox.com),
+            // the longest value wins — that is the authorized session.
             if (raw.size() > best.size())
                 best = raw;
         }
@@ -613,7 +613,7 @@ void CdpLoginService::loginBulk(const QList<CdpLoginRequest>& requests, int conc
 void CdpLoginService::pumpQueue()
 {
     if (m_browserPath.isEmpty()) {
-        // Не найден браузер — все запросы в отказ
+        // No browser found — every request fails
         for (const auto& r : std::as_const(m_queue))
             emit loginFailed(r.username, QStringLiteral("browser-not-found"));
         m_queue.clear();
@@ -626,7 +626,7 @@ void CdpLoginService::pumpQueue()
     while (m_active.size() < m_concurrency && !m_queue.isEmpty()) {
         const CdpLoginRequest req = m_queue.takeFirst();
 
-        // Сетка окон: колонок 2 (как RAM), максимум 2 ряда на экране
+        // Window grid: 2 columns (like RAM), at most 2 rows per screen
         QRect cell;
         const int index = m_succeeded + m_failed + m_active.size();
         const QRect wa = ex::platform::WindowMgr::primaryWorkArea();

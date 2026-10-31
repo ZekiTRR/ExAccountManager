@@ -9,9 +9,9 @@
 namespace ex::roblox {
 
 namespace {
-// Cookie задаётся вручную для каждого аккаунта. Встроенный jar QNAM хранил
-// Set-Cookie предыдущего аккаунта и подмешивал его в следующий запрос —
-// вторая валидация возвращала первый аккаунт. Jar должен быть пустым.
+// Each account sets its Cookie header by hand. The built-in QNAM jar kept
+// stored the previous account's Set-Cookie and mixed it into the next request,
+// a second validation returned the first account. The jar must stay empty.
 class EmptyCookieJar final : public QNetworkCookieJar {
 public:
     using QNetworkCookieJar::QNetworkCookieJar;
@@ -37,7 +37,7 @@ Http::Http(QObject* parent)
 
 QByteArray Http::userAgent()
 {
-    // Браузерный UA: часть эндпоинтов (auth-ticket) фильтрует не-браузерные.
+    // Browser UA: some endpoints (auth-ticket) reject non-browser ones.
     return QByteArrayLiteral(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
@@ -77,7 +77,7 @@ void Http::exec(QNetworkReply* reply, Callback cb, int timeoutMs)
         res.body = reply->readAll();
         res.allHeaders = reply->rawHeaderPairs();
         if (!res.networkOk && res.status != 0)
-            res.networkOk = true; // HTTP-ошибка тоже «состоялся» — статус валиден
+            res.networkOk = true; // An HTTP error is still a real answer — the status is valid
         const QNetworkReply::NetworkError e = reply->error();
         const QString es = reply->errorString();
         reply->deleteLater();
@@ -92,8 +92,8 @@ void Http::get(const QNetworkRequest& req, Callback cb, int timeoutMs)
     QNetworkRequest r = req;
     if (!r.hasRawHeader(QByteArrayLiteral("User-Agent")))
         r.setRawHeader(QByteArrayLiteral("User-Agent"), userAgent());
-    // HTTP/1.1, как RestSharp в C# RAM: Qt-HTTP/2 с браузерным UA
-    // фильтруется Roblox как бот-фингерпринт (cookie-rejected).
+    // HTTP/1.1 like RestSharp in C# RAM: Qt HTTP/2 with a browser UA
+    // is filtered by Roblox as a bot fingerprint (cookie-rejected).
     r.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
     exec(m_nam.get(r), std::move(cb), timeoutMs);
 }

@@ -23,24 +23,24 @@ struct CdpLoginRequest {
     QString password;
 };
 
-// Одна сессия входа: браузер (Edge/Chrome) + вкладка roblox.com/login +
-// автозаполнение через CDP Runtime.evaluate + перехват HttpOnly cookie
-// .ROBLOSECURITY через CDP Network.getCookies (подход Astro EdgeCDP).
+// One login session: browser (Edge/Chrome) + roblox.com/login tab +
+// autofill via CDP Runtime.evaluate + capture of the HttpOnly cookie
+// Reads .ROBLOSECURITY via CDP Network.getCookies (Astro EdgeCDP approach).
 //
-// Если приложение запущено с правами администратора, браузер запускается
-// с понижением прав (токен explorer): Chrome 136+ отказывается от remote
-// debugging в повышенном контексте и мгновенно выходит.
+// When the app runs as administrator, the browser is started
+// de-elevated (explorer token): Chrome 136+ refuses remote
+// debugging in an elevated context and exits immediately.
 //
-// Секреты не попадают в argv процесса браузера: логин/пароль передаются
-// только в теле CDP-вызова по localhost WebSocket.
+// Secrets never reach the browser's argv: login/password are passed
+// only inside the CDP call body over the localhost WebSocket.
 class CdpLoginSession : public QObject {
     Q_OBJECT
 public:
     enum class Status {
-        StartingBrowser = 0, // ждём DevToolsActivePort
-        Connecting,          // WebSocket к вкладке
-        FillingForm,         // автозаполнение формы
-        WaitingForUser,      // ждём входа (капча/2FA/кнопка)
+        StartingBrowser = 0, // waiting for DevToolsActivePort
+        Connecting,          // WebSocket to the tab
+        FillingForm,         // fill in the form
+        WaitingForUser,      // waiting for the login (captcha/2FA/button)
         CookieCaptured,
         Failed,
         Cancelled,
@@ -50,8 +50,8 @@ public:
     explicit CdpLoginSession(QObject* parent = nullptr);
     ~CdpLoginSession() override;
 
-    // browserPath — найденный msedge/chrome. windowRect — позиция окна
-    // (для bulk-сетки); пустой QRect = как получится.
+    // browserPath is the found msedge/chrome. windowRect is the window position
+    // (for the bulk grid); an empty QRect = best effort.
     void start(const QString& browserPath, const CdpLoginRequest& req, const QRect& windowRect);
 
     void cancel();
@@ -60,15 +60,15 @@ public:
 
 signals:
     void statusChanged(ex::roblox::CdpLoginSession::Status status, const QString& detail);
-    // cookie перехвачен; userId/Name/DisplayName получены
-    // fetch('/my/account/json') ИЗ САМОЙ СТРАНИЦЫ (паттерн C# RAM
-    // AccountBrowser.cs:329). username — запрошенный логин (для таблицы),
-    // realUsername/realDisplayName — настоящие Name/DisplayName Roblox.
-    // Пароль — чтобы сохранить в vault для ре-логина.
+    // cookie captured; userId/Name/DisplayName obtained
+    // fetch('/my/account/json') FROM THE PAGE ITSELF (C# RAM pattern,
+    // AccountBrowser.cs:329). username is the requested login (for the table),
+    // realUsername/realDisplayName are the real Roblox Name/DisplayName.
+    // The password is stored in the vault for re-login.
     void captured(const QString& username, const QString& cookie, const QString& password,
                   qint64 userId, const QString& realUsername, const QString& realDisplayName);
     void finished();
-    void failedInternal(const QString& detail); // сервис пересчитывает статистику
+    void failedInternal(const QString& detail); // the service recomputes statistics
 
 private:
     void setStatus(Status s, const QString& detail);
@@ -95,8 +95,8 @@ private:
     QRect m_windowRect;
     QString m_userDataDir;
 
-    QProcess m_browser;                        // обычный (не elevated) запуск
-    void* m_deelevatedHandle = nullptr;        // elevated: HANDLE из launchDeelevated
+    QProcess m_browser;                        // normal (non-elevated) launch
+    void* m_deelevatedHandle = nullptr;        // elevated: HANDLE from launchDeelevated
     bool m_retriedMinimal = false;
     unsigned long m_lastExitCode = 0;
 
@@ -112,22 +112,22 @@ private:
     int m_totalMs = 0;
     bool m_done = false;
 
-    // Механика перехвата из C# RAM (Page_RequestFinished): cookie берём
-    // ТОЛЬКО после успешного (200) POST на auth.roblox.com/v2/login,
-    // /v2/signup или /users/<id>/two-step-verification/login — тогда в
-    // cookie jar гарантированно авторизованная сессия, а не гостевая.
-    QSet<QString> m_loginRequestIds;  // requestId POST-запросов логина
-    QSet<QString> m_okLoginIds;       // из них получившие 200
-    bool m_sawLoginFinish = false;    // логин завершился успешно
-    bool m_captureInFlight = false;   // fetch/redeem уже выполняется
+    // Capture mechanics from C# RAM (Page_RequestFinished): the cookie comes
+    // ONLY after a successful (200) POST to auth.roblox.com/v2/login,
+    // /v2/signup or /users/<id>/two-step-verification/login — then
+    // cookie jar is guaranteed to be an authorized session, not a guest one.
+    QSet<QString> m_loginRequestIds;  // requestId of the login POSTs
+    QSet<QString> m_okLoginIds;       // of those, the ones that returned 200
+    bool m_sawLoginFinish = false;    // the login finished successfully
+    bool m_captureInFlight = false;   // fetch/redeem is already running
     int m_captureAttempts = 0;
 };
 
-// Менеджер: детект браузера, сетка окон, параллельные сессии (по 2, как RAM).
+// Manager: browser detection, window grid, parallel sessions (2 at a time, like RAM).
 class CdpLoginService : public QObject {
     Q_OBJECT
 public:
-    // Путь к Edge/Chrome или пустая строка (Edge приоритетнее — есть везде).
+    // Path to Edge/Chrome or empty (Edge first — it is always installed).
     static QString findBrowser();
     static QStringList browserCandidates();
 

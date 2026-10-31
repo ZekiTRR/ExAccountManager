@@ -27,9 +27,9 @@ QByteArray cookieHash(const QString& cookie)
     return QCryptographicHash::hash(cookie.toUtf8(), QCryptographicHash::Sha256).toHex().left(16);
 }
 
-// Общие заголовки авторизованного запроса. Referer/Origin и пустой
-// x-bound-auth-token повторяют браузер (приём RM): без них часть эндпоинтов
-// периодически отвечает 401 даже на живой cookie.
+// Common headers for an authorized request. Referer/Origin and the empty
+// x-bound-auth-token mimic the browser (RM trick): without them some endpoints
+// intermittently answer 401 even for a live cookie.
 QNetworkRequest sessionRequest(const QUrl& url, const QString& cookie,
                                const QByteArray& csrf = {})
 {
@@ -60,7 +60,7 @@ QString jsonString(const QJsonObject& o, const char* camel, const char* pascal =
     return o.value(QLatin1String(pascal)).toString();
 }
 
-// Новый .ROBLOSECURITY из ответа (Set-Cookie), если сервер его ротировал.
+// New .ROBLOSECURITY from the response (Set-Cookie) if the server rotated it.
 QString rotatedCookieFrom(const HttpResponse& res, const QString& currentCookie)
 {
     QString rotated;
@@ -78,8 +78,8 @@ QString rotatedCookieFrom(const HttpResponse& res, const QString& currentCookie)
 
 QString curlExecutable()
 {
-    // Системный curl (Windows 10 1803+): Schannel-стек, который проходит
-    // auth-ticket там, где Qt-клиент получает 401 на CSRF-retry.
+    // System curl (Windows 10 1803+): the Schannel stack that gets an auth
+    // ticket where the Qt client receives 401 on the CSRF retry.
     const QString system = QStringLiteral("C:/Windows/System32/curl.exe");
     if (QFile::exists(system))
         return system;
@@ -88,7 +88,7 @@ QString curlExecutable()
 
 QString escapeCurlConfig(QString value)
 {
-    // Не даём значению (cookie/токен) добавить строки в curl-конфиг.
+    // Prevent a value (cookie/token) from injecting extra lines into the curl config.
     value.remove(QLatin1Char('\r'));
     value.remove(QLatin1Char('\n'));
     value.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
@@ -219,8 +219,8 @@ void RobloxApi::authedPost(const QString& cookie, const QNetworkRequest& reqIn,
         observeSetCookie(cookie, res);
 
         if (!rotated.isEmpty()) {
-            // CSRF-токен принадлежит сессии, а не конкретному значению cookie:
-            // переносим его на новый ключ, иначе retry не найдёт токен.
+            // The CSRF token belongs to the session, not to a specific cookie value:
+            // move it to the new key, otherwise the retry won't find the token.
             const QByteArray cached = m_csrf.value(cookieHash(cookie));
             if (!cached.isEmpty())
                 m_csrf.insert(cookieHash(effective), cached);
@@ -300,8 +300,8 @@ void RobloxApi::validateCookie(const QString& cookie,
             emit cookieRotated(cookie, rotated);
         }
 
-        // Qt-стек иногда получает ложный 401 (иная TLS/HTTP-подпись), поэтому
-        // любой не-OK исход перепроверяем системным curl — как auth-ticket.
+        // The Qt stack sometimes gets a false 401 (different TLS/HTTP fingerprint), so
+        // re-check any non-OK outcome with system curl — like the auth ticket.
         auto fallback = [this, cookie, deliver](CookieValidation qt) {
             const QString curlCookie =
                 qt.effectiveCookie.isEmpty() ? cookie : qt.effectiveCookie;
@@ -318,8 +318,8 @@ void RobloxApi::validateCookie(const QString& cookie,
             return;
         }
         if (res.status == 403) {
-            // JSON-ошибка Roblox = сессия недействительна; HTML/Cloudflare =
-            // блокировка запроса, сессию не трогаем.
+            // A Roblox JSON error means an invalid session; HTML/Cloudflare means
+            // blocks the request but leaves the session alone.
             const bool robloxJson = res.body.contains("\"errors\"")
                 || res.body.contains("not authenticated");
             result.check = robloxJson ? SessionCheck::InvalidSession
@@ -353,8 +353,8 @@ void RobloxApi::validateCookie(const QString& cookie,
         if (result.user.displayName.isEmpty())
             result.user.displayName = result.user.username;
 
-        // Диагностика формата: имена Set-Cookie без значений (ротация/
-        // удаление .ROBLOSECURITY — частая причина 401 после валидации).
+        // Format diagnostics: Set-Cookie names without values (rotation/
+        // deleting .ROBLOSECURITY — a common cause of 401 after validation).
         for (const QByteArray& raw : res.headers(QByteArrayLiteral("Set-Cookie"))) {
             const QString header = QString::fromLatin1(raw);
             const QString first = header.section(QLatin1Char(';'), 0, 0);
@@ -526,9 +526,9 @@ void RobloxApi::generateAuthTicket(const QString& cookie, TicketCallback cb)
 
 void RobloxApi::generateAuthTicketViaQt(const QString& cookie, TicketCallback cb)
 {
-    // Fallback без curl: Astro-форма (тело "{}" + Content-Type JSON).
-    // Qt-клиент на этой сессии получает 401 на CSRF-retry, поэтому основной
-    // путь — curl (см. generateAuthTicketViaCurl).
+    // Fallback without curl: Astro form (body "{}" + JSON Content-Type).
+    // The Qt client gets 401 on the CSRF retry here, so the primary
+    // path is curl (see generateAuthTicketViaCurl).
     QNetworkRequest req = sessionRequest(
         QUrl(QStringLiteral("https://auth.roblox.com/v1/authentication-ticket")), cookie);
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
@@ -751,8 +751,8 @@ void RobloxApi::avatarHeadshots(const QList<qint64>& userIds,
     QStringList ids;
     for (qint64 id : userIds)
         ids << QString::number(id);
-    // Сопоставление строго по targetId — Roblox возвращает не по порядку и
-    // может пропускать id (наблюдение RM).
+    // Match strictly by targetId — Roblox replies out of order and
+    // may omit the id (observed in RM).
     QUrl url(QStringLiteral("https://thumbnails.roblox.com/v1/users/avatar-headshot"));
     QUrlQuery q;
     q.addQueryItem(QStringLiteral("userIds"), ids.join(QLatin1Char(',')));
@@ -848,8 +848,8 @@ void RobloxApi::gameDetails(const QString& cookie, qint64 placeId,
 void RobloxApi::resolveShareLink(const QString& cookie, const QString& code,
                                  std::function<void(bool, ShareLinkInfo, QString)> cb)
 {
-    // Порт Astro: share-ссылка не содержит placeId, Roblox разворачивает её
-    // в privateServerInviteData (placeId + linkCode) от имени аккаунта.
+    // Astro port: a share link has no placeId, Roblox expands it
+    // into privateServerInviteData (placeId + linkCode) as that account.
     QNetworkRequest req = sessionRequest(
         QUrl(QStringLiteral("https://apis.roblox.com/sharelinks/v1/resolve-link")), cookie);
     QJsonObject body;
@@ -887,8 +887,8 @@ void RobloxApi::resolveShareLink(const QString& cookie, const QString& code,
             cb(false, info, QStringLiteral("not-a-private-server-link"));
             return;
         }
-        // Astro: статус может быть "Valid"/"Invalid" — не притворяемся, что
-        // недействительное приглашение сработает.
+        // Astro: the status may read "Valid"/"Invalid" — we do not pretend
+        // an invalid invite still works.
         if (!info.status.isEmpty()
             && info.status.compare(QStringLiteral("valid"), Qt::CaseInsensitive) != 0) {
             cb(false, info, QStringLiteral("share-link-%1").arg(info.status.toLower()));
@@ -907,7 +907,7 @@ void RobloxApi::usernameToUserId(const QString& cookie, const QString& username,
     arr.append(username);
     QJsonObject body;
     body[QStringLiteral("usernames")] = arr;
-    body[QStringLiteral("excludeBannedUsers")] = false; // для забаненных (приём RM)
+    body[QStringLiteral("excludeBannedUsers")] = false; // for banned accounts (RM's approach)
     authedPost(cookie, req, QJsonDocument(body).toJson(QJsonDocument::Compact),
                [cb = std::move(cb)](HttpResponse res, const QString&) mutable {
         if (res.status != 200) {
@@ -927,7 +927,7 @@ void RobloxApi::usernameToUserId(const QString& cookie, const QString& username,
 void RobloxApi::moderationStatus(const QString& cookie, qint64 userId,
                                  std::function<void(bool, model::ModerationInfo)> cb)
 {
-    // Публичный флаг isBanned + cookie-only причина.
+    // Public isBanned flag plus a cookie-only reason.
     QNetworkRequest pub = Http::jsonRequest(
         QUrl(QStringLiteral("https://users.roblox.com/v1/users/%1").arg(userId)));
     m_http.get(pub, [this, cookie, userId, cb = std::move(cb)](HttpResponse res1) mutable {
@@ -938,18 +938,18 @@ void RobloxApi::moderationStatus(const QString& cookie, qint64 userId,
         }
         const QJsonObject o = QJsonDocument::fromJson(res1.body).object();
         if (!o[QStringLiteral("isBanned")].toBool()) {
-            cb(true, m); // не модерируется
+            cb(true, m); // not moderated
             return;
         }
         m.moderated = true;
-        // Причина и срок — от авторизованного пользователя (только сам себя).
+        // Reason and term come from an authorized user (only about themselves).
         QNetworkRequest req = sessionRequest(
             QUrl(QStringLiteral("https://usermoderation.roblox.com/v1/not-approved")), cookie);
         m_http.get(req, [this, cookie, cb = std::move(cb), m](HttpResponse res2) mutable {
             observeSetCookie(cookie, res2);
             if (res2.status == 200) {
                 const QJsonObject mo = QJsonDocument::fromJson(res2.body).object();
-                m.reason = mo[QStringLiteral("moderationMessage")] // v1 поле может отличаться
+                m.reason = mo[QStringLiteral("moderationMessage")] // the v1 field may differ
                                .toString(mo[QStringLiteral("reason")].toString());
             }
             cb(true, m);

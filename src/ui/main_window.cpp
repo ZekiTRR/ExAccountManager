@@ -29,7 +29,7 @@
 namespace ex::ui {
 namespace {
 
-// Фон рабочей области: графит + очень мягкие ирисовые ореолы из макета.
+// Work-area background: graphite + very soft iris halos from the mockup.
 class ShellCanvas : public QWidget {
 public:
     explicit ShellCanvas(QWidget* parent = nullptr)
@@ -193,8 +193,8 @@ void MainWindow::applyTitlebarColor()
     if (const HWND hwnd = reinterpret_cast<HWND>(winId())) {
         const BOOL dark = theme::isDark() ? TRUE : FALSE;
         DwmSetWindowAttribute(hwnd, 20, &dark, sizeof dark);
-        // Не вызываем SetWindowPos(SWP_FRAMECHANGED): он синхронно шлёт
-        // WM_STYLECHANGED и рекурсивно возвращает нас в changeEvent().
+        // No SetWindowPos(SWP_FRAMECHANGED): it synchronously sends
+        // WM_STYLECHANGED and re-enters changeEvent() recursively.
     }
 #endif
 }

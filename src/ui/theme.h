@@ -3,31 +3,31 @@
 #include <QColor>
 #include <QString>
 
-// Material You (Material Design 3) токены приложения.
+// Material You (Material Design 3) tokens for the app.
 //
-// Схемы — канонический baseline M3 (seed #6750A4) тёмная/светлая; дополненные
-// нашими расширениями: success/warning, presence-цвета, оверлеи состояний.
-// Палитра применяется вместе с QPalette (примитивы стиля: стрелки деревьев,
-// combobox и т.п.) и глобальным QSS.
+// Schemes — canonical M3 baseline (seed #6750A4) dark/light, extended with
+// our own tokens: success/warning, presence colours, state overlays.
+// The palette is applied with a QPalette (style primitives: tree arrows,
+// combobox, etc.) and the global QSS.
 
 namespace ex::ui::theme {
 
-// Полный набор семантических токенов текущей темы.
+// All semantic tokens of the current theme.
 struct Palette {
     // Primary
-    QColor primary;           // фон filled-кнопок
-    QColor accent;            // акцентный текст/иконки (в тёмной теме светлее)
+    QColor primary;           // filled button background
+    QColor accent;            // accent text/icons (lighter in the dark theme)
     QColor onPrimary;
-    QColor primaryHover;      // фон filled-кнопки при hover
+    QColor primaryHover;      // filled button background on hover
     QColor primaryPressed;
     QColor primaryContainer;
     QColor onPrimaryContainer;
 
-    // Secondary (для tonal-кнопок, чипов, выделения)
+    // Secondary (for tonal buttons, chips, selection)
     QColor secondaryContainer;
     QColor onSecondaryContainer;
 
-    // Поверхности
+    // Surfaces
     QColor surface;
     QColor surfaceContainerLow;
     QColor surfaceContainer;
@@ -46,7 +46,7 @@ struct Palette {
     QColor errorContainer;
     QColor onErrorContainer;
 
-    // Расширения (не из спецификации M3)
+    // Extensions (not part of the M3 spec)
     QColor success;
     QColor warning;
     QColor presenceOnline;
@@ -56,35 +56,35 @@ struct Palette {
     QColor tooltipBase;
     QColor tooltipText;
 
-    // Предвычисленные состояния для QSS и делегатов
-    QColor fieldBg;           // фон полей ввода
-    QColor fieldBorder;       // рамка полей в покое
-    QColor hoverOverlay;      // rgba поверх для hover текст-кнопок
+    // Precomputed states for QSS and delegates
+    QColor fieldBg;           // input field background
+    QColor fieldBorder;       // resting field outline
+    QColor hoverOverlay;      // rgba overlay for text-button hover
     QColor pressedOverlay;
-    QColor rowAlt;            // чередование строк таблиц
-    QColor icon;              // цвет иконок на кнопках
+    QColor rowAlt;            // table row banding
+    QColor icon;              // icon colour on buttons
     QColor iconDim;
 
     bool dark = true;
 };
 
-// Текущая применённая палитра (до первого apply* — тёмная).
+// Currently applied palette (dark before the first apply* call).
 const Palette& currentPalette();
 bool isDark();
 
-// Применить тему по имени ("dark"/"light", иначе — тёмная):
-// QSS + QPalette + перерисовка иконок кнопок.
+// Apply a theme by name ("dark"/"light", anything else = dark):
+// QSS + QPalette + repainting of button icons.
 void applyTheme(const QString& name);
 
-// QSS схем (используются applyTheme; отдельно — для loadCustom).
+// QSS schemes (used by applyTheme; separately by loadCustom).
 QString darkQss();
 QString lightQss();
 
-// Совместимость со старым API: применить готовый QSS без смены палитры.
+// Old-API compatibility: apply prepared QSS without changing the palette.
 [[deprecated("use applyTheme(name)")]] void apply(const QString& qss);
 
-// Пользовательская тема из JSON (themes/*.json): {"dark":true,"colors":{...}}.
-// Переопределяет акцент поверх baseline-схемы, с фолбеком на тёмную.
+// User theme from JSON (themes/*.json): {"dark":true,"colors":{...}}.
+// Overrides the accent on the baseline scheme, falling back to dark.
 QString loadCustom(const QString& jsonPath, QString* error = nullptr);
 
 } // namespace ex::ui::theme

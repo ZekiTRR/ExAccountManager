@@ -15,9 +15,9 @@ namespace ex::ui {
 
 class AppContext;
 
-// Диалог входа через браузер (CDP): таблица сессий (логин, статус),
-// прогресс, отмена. По перехвату cookie — добавляет аккаунт через
-// AccountService и сохраняет пароль в vault.
+// Browser login dialog (CDP): session table (login, status),
+// progress, cancel. On a cookie capture it adds the account through
+// AccountService and saves the password in the vault.
 class CdpLoginDialog : public QDialog {
     Q_OBJECT
 public:

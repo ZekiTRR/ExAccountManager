@@ -36,13 +36,13 @@ void InstanceRegistry::sweep(const QList<ex::platform::ProcessInfo>& liveProcess
 {
     const QDateTime now = QDateTime::currentDateTime();
 
-    // 1) Найти процессы, чья командная строка несёт один из наших токенов.
+    // 1) Find processes whose command line carries one of our tokens.
     QSet<qint64> livePids;
     for (const auto& proc : liveProcesses)
         livePids.insert(proc.pid);
 
     for (const auto& proc : liveProcesses) {
-        // Уже атрибутирован и жив — обновить lastSeen.
+        // Already attributed and alive — refresh lastSeen.
         auto it = m_byPid.find(proc.pid);
         if (it != m_byPid.end() && it->info.processCreateTimeMs == proc.createTimeMs) {
             it->lastSeen = now;
@@ -51,9 +51,9 @@ void InstanceRegistry::sweep(const QList<ex::platform::ProcessInfo>& liveProcess
             continue;
         }
 
-        // Новый процесс: читаем командную строку через PEB и ищем launchtime:TOKEN.
+        // New process: read its command line through the PEB and look for launchtime:TOKEN.
         const QString cmdline = ex::platform::processCommandLine(proc.pid);
-        // URI-формат: ...+launchtime:123456789+...
+        // URI format: ...+launchtime:123456789+...
         static const QRegularExpression rx{QStringLiteral(R"(launchtime:(\d+))")};
         const auto m = rx.match(cmdline);
         if (!m.hasMatch())
@@ -62,7 +62,7 @@ void InstanceRegistry::sweep(const QList<ex::platform::ProcessInfo>& liveProcess
 
         auto pit = m_pending.find(token);
         if (pit != m_pending.end()) {
-            // Exact-атрибуция!
+            // Exact attribution!
             Entry e;
             e.info.accountId = pit->accountId;
             e.info.pid = proc.pid;
@@ -80,10 +80,10 @@ void InstanceRegistry::sweep(const QList<ex::platform::ProcessInfo>& liveProcess
             emit instanceStarted(e.info);
             emit instancesChanged();
         }
-        // Нет pending — это чужой/старый клиент, не трогаем (Unattributed).
+        // Nothing pending — a foreign/old client, leave it (Unattributed).
     }
 
-    // 2) Ушедшие процессы: пометить/удалить.
+    // 2) Gone processes: mark or remove.
     QList<qint64> deadPids;
     for (auto it = m_byPid.begin(); it != m_byPid.end(); ++it) {
         if (!livePids.contains(it.key()))
@@ -98,7 +98,7 @@ void InstanceRegistry::sweep(const QList<ex::platform::ProcessInfo>& liveProcess
         emit instancesChanged();
     }
 
-    // 3) Просроченные pending.
+    // 3) Expired pending entries.
     QStringList expired;
     for (auto it = m_pending.begin(); it != m_pending.end(); ++it)
         if (it->since.msecsTo(now) > kPendingTimeoutMs)

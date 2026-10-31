@@ -14,8 +14,8 @@ const QRegularExpression kSensitive{
     QStringLiteral("password|cookie|token|secret|session|authorization|api_key|roblosecurity"),
     QRegularExpression::CaseInsensitiveOption};
 
-// Скаляр хранится как {"v": ...}: QJsonDocument::fromVariant не умеет голые
-// QString (молча даёт null-документ).
+// A scalar is stored as {"v": ...}: QJsonDocument::fromVariant rejects bare
+// QString (silently yields a null document).
 QByteArray encodeValue(const QVariant& value)
 {
     QJsonObject o;
@@ -63,10 +63,10 @@ QVariantHash Settings::section(const QString& prefix) const
         const QString full = s.colText(0);
         const QString sub = full.mid(p.size());
         if (sub.isEmpty() || sub.contains(QLatin1Char('.')))
-            continue; // только один уровень
+            continue; // one level only
         out.insert(sub, decodeValue(s.colBlob(1)));
     }
-    // дефолты этого префикса
+    // defaults under this prefix
     for (auto it = m_defaults.constBegin(); it != m_defaults.constEnd(); ++it)
         if (it.key().startsWith(p) && !out.contains(it.key().mid(p.size())))
             out.insert(it.key().mid(p.size()), it.value());

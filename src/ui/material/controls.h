@@ -15,7 +15,7 @@ class QWidget;
 
 namespace ex::ui::controls {
 
-// Маленькая цветная точка статуса; цвет следует tone и текущей теме.
+// Small coloured status dot; colour follows tone and the current theme.
 class StatusDot : public QWidget {
 public:
     explicit StatusDot(int size = 6, QWidget* parent = nullptr);
@@ -30,8 +30,8 @@ private:
     QString m_tone;
 };
 
-// Спинбокс без стрелок. Держит внутренний QLineEdit шириной с поле:
-// QStyleSheetStyle иначе сжимает его до 1 px, и значение не видно.
+// Spinbox without arrows. Its inner QLineEdit spans the whole field:
+// otherwise QStyleSheetStyle shrinks it to 1 px and the value is invisible.
 class NumberSpinBox : public QSpinBox {
 public:
     explicit NumberSpinBox(QWidget* parent = nullptr);
@@ -55,11 +55,11 @@ QPushButton* iconButton(const QString& icon, const QString& tooltip,
 QFrame* card(QWidget* parent = nullptr);
 QFrame* separator(QWidget* parent = nullptr);
 
-// Установить динамическое свойство tone и переполировать (для status-меток).
+// Set the dynamic tone property and repolish (for status labels).
 void setTone(QWidget* widget, const QString& tone);
 void repolish(QWidget* widget);
 
-// Удалить и уничтожить все элементы layout (не сам layout).
+// Remove and destroy every item in the layout (not the layout itself).
 void clearLayout(QLayout* layout);
 
 } // namespace ex::ui::controls

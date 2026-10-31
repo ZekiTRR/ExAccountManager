@@ -14,8 +14,8 @@ class AppContext;
 class Segmented;
 class StatCard;
 
-// Аналитика: период (сегодня/7/30 дней), карточки метрик, разбивка по
-// аккаунтам и график активности.
+// Analytics: period (today/7/30 days), metric cards, breakdown by
+// accounts and the activity chart.
 class AnalyticsView : public QWidget {
     Q_OBJECT
 public:

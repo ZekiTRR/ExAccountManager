@@ -7,13 +7,13 @@
 
 namespace ex::log {
 
-// Логгер с обязательным скраббингом секретов (backstop) и ежедневной
-// ротацией файлов. Использование:
+// Logger that always scrubs secrets (backstop) and rotates
+// daily log rotation. Usage:
 //
 //   ex::log::info("launcher") << "launching" << accountId;
 //   EXLOG_WARN("store") << "missing table, migrating";
 //
-// Все сообщения проходят через redact::scrub() на уровне sink'а.
+// All messages pass through redact::scrub() at the sink level.
 
 enum class Level { Debug, Info, Warn, Error };
 
@@ -21,14 +21,14 @@ void init(const QString& logsDir, int keepDays = 7);
 void shutdown();
 bool initialized();
 
-// Включить вывод в stderr (для отладки; в windowed-режиме полезно при запуске из консоли).
+// Also log to stderr (debugging; handy when starting a windowed build from a console).
 void setConsoleEcho(bool on);
 
-// Собственно запись (используется стримом ниже).
+// The actual write (used by the stream below).
 void write(Level level, const QString& category, const QString& message);
 
 namespace detail {
-// Стрим-обёртка: копит аргументы, пишет при разрушении.
+// Stream wrapper: collects arguments, writes on destruction.
 class LogStream {
 public:
     LogStream(Level level, QString category)

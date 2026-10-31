@@ -1,5 +1,5 @@
-// Диагностика хранилища секретов. Только локальные проверки: не делает
-// сетевых запросов и не может инвалидировать сессию/ротировать cookie.
+// Secret-storage diagnostics. Local checks only: it never makes
+// network requests and cannot invalidate a session or rotate a cookie.
 #include "core/crypto/envelope.h"
 #include "core/store/account_store.h"
 #include "core/store/database.h"

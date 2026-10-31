@@ -5,18 +5,18 @@
 
 namespace ex::platform {
 
-// Текущий процесс запущен с повышенными правами (admin)?
+// Is the current process elevated (admin)?
 bool isElevated();
 
-// Запуск процесса с понижением прав — от токена оболочки (explorer).
-// Приём из RAM Updater (RunAsDesktopUser): дублируем токен explorer.exe
-// и создаём процесс через CreateProcessWithTokenW.
-// Нужно, потому что Chrome 136+ отказывается от remote debugging,
-// если браузер запущен с повышением.
+// Start a process with reduced rights — from the shell (explorer) token.
+// From the RAM Updater (RunAsDesktopUser): duplicate the explorer.exe token
+// and create the process with CreateProcessWithTokenW.
+// Needed because Chrome 136+ refuses remote debugging
+// when the browser runs elevated.
 //
-// Возвращает HANDLE процесса (закрывать через closeProcessHandle)
-// или nullptr при неудаче. Работает только из elevated-контекста
-// (требуется SeImpersonatePrivilege).
+// Returns a process HANDLE (close it with closeProcessHandle)
+// or nullptr on failure. Only works from an elevated context
+// (needs SeImpersonatePrivilege).
 void* launchDeelevated(const QString& exePath, const QStringList& args,
                        const QString& workingDir = QString());
 

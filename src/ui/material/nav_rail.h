@@ -7,8 +7,8 @@ class QPushButton;
 
 namespace ex::ui {
 
-// Левая навигационная панель: бренд, пункты разделов, переключатель темы.
-// Версия и статус хранилища в футере намеренно отсутствуют.
+// Left nav panel: brand, section items, theme switch.
+// Version and vault status are deliberately absent from the footer.
 class NavRail : public QFrame {
     Q_OBJECT
 public:

@@ -4,22 +4,22 @@
 
 namespace ex::platform {
 
-// Владение глобальным мьютексом Roblox (ROBLOX_singletonMutex) — включает
-// мультиинстанс. Подход Astro: выделенный поток ВЛАДЕЕТ мьютексом честно
-// (CreateMutexW + WaitForSingleObject), никогда не закрывает чужие хэндлы
-// в процессах Roblox — закрытие чужих хэндлов валило клиент с
+// Holding the global Roblox mutex (ROBLOX_singletonMutex) enables
+// multi-instance. Astro's approach: one dedicated thread OWNS the mutex
+// (CreateMutexW + WaitForSingleObject); never closes foreign handles
+// in Roblox processes — closing foreign handles crashed the client with
 // ERROR_INVALID_HANDLE.
 //
-// Использование:
+// Usage:
 //   SingletonMutex m;
-//   auto res = m.acquire(); // см. AcquireResult
+//   auto res = m.acquire(); // see AcquireResult
 //   ...
-//   m.release();            // или деструктор
+//   m.release();            // or the destructor
 class SingletonMutex {
 public:
     enum class AcquireResult {
-        Acquired,       // мы владеем — мультиинстанс работает
-        AlreadyRunning, // Roblox уже запущен; честно ждём в очереди
+        Acquired,       // we own it — multi-instance works
+        AlreadyRunning, // Roblox is already running; wait in the queue honestly
         Error,
     };
 

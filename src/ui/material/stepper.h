@@ -7,7 +7,7 @@ class QPushButton;
 
 namespace ex::ui {
 
-// Компактный числовой контрол «− значение +» с подписью единицы.
+// Compact "- value +" number control with a unit caption.
 class Stepper : public QFrame {
     Q_OBJECT
 public:

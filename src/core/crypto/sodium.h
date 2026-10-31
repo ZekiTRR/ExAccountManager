@@ -4,14 +4,14 @@
 
 namespace ex::crypto {
 
-// Инициализация libsodium (идемпотентная, вызывается всеми модулями).
+// libsodium initialization (idempotent; every crypto module calls it).
 inline bool ensureSodium()
 {
     static bool ok = sodium_init() >= 0;
     return ok;
 }
 
-// Генерация криптостойких случайных байт.
+// Generates cryptographically strong random bytes.
 inline void randomBytes(unsigned char* out, size_t len)
 {
     ensureSodium();

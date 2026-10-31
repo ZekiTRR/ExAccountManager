@@ -86,7 +86,7 @@ ClientOptionsDialog::ClientOptionsDialog(const QList<qint64>& selectedPids,
     header->addLayout(copy, 1);
     root->addLayout(header);
 
-    // ---- область применения
+    // ---- scope of application
     auto* scopeRow = new QHBoxLayout;
     scopeRow->setContentsMargins(0, 0, 0, 0);
     scopeRow->setSpacing(10);
@@ -122,7 +122,7 @@ ClientOptionsDialog::ClientOptionsDialog(const QList<qint64>& selectedPids,
     scopeRow->addWidget(scope);
     root->addLayout(scopeRow);
 
-    // ---- окно
+    // ---- window
     auto* windowCard = section(
         tr("Окно Roblox"),
         tr("Размер применяется с сохранением текущей позиции окна; сетка "
@@ -183,7 +183,7 @@ ClientOptionsDialog::ClientOptionsDialog(const QList<qint64>& selectedPids,
         QStringLiteral("fieldHint")));
     root->addWidget(windowCard);
 
-    // ---- лимиты
+    // ---- limits
     auto* limitsCard = section(
         tr("Ресурсы"),
         tr("ОЗУ — жёсткий лимит рабочего набора, CPU — Job Object "

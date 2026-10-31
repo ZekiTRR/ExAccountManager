@@ -17,7 +17,7 @@ QString stripTrailingColons(QString value)
     return value;
 }
 
-// "user:pass" (пароль может содержать ':') -> поля записи.
+// "user:pass" (a password may contain ':') -> record fields.
 bool splitUserPass(const QString& prefix, BulkEntry& entry)
 {
     const QString p = stripTrailingColons(prefix.trimmed());
@@ -41,7 +41,7 @@ bool isHexString(const QString& s)
 
 QString decodeFile(const QByteArray& raw)
 {
-    // BOM-ы: UTF-8, UTF-16 LE/BE. Без BOM — UTF-8, при явных ошибках Latin-1.
+    // BOMs: UTF-8, UTF-16 LE/BE. No BOM = UTF-8; on hard errors Latin-1.
     if (raw.startsWith(QByteArrayLiteral("\xEF\xBB\xBF")))
         return QStringDecoder(QStringDecoder::Utf8).decode(raw.mid(3));
     if (raw.startsWith(QByteArrayLiteral("\xFF\xFE")))
@@ -62,22 +62,22 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
 {
     QList<BulkEntry> out;
 
-    // Одна строка = одна запись. Внутри строки допускаются CSV/TSV-разделители
-    // (порт форматов RAM/Astro), но значение cookie никогда их не содержит.
+    // One line = one record. Inside a line CSV/TSV separators are allowed
+    // (RAM/Astro format port), but a cookie value never contains them.
     const QStringList lines = text.split(
         QRegularExpression(QStringLiteral("\r\n|\n|\r")), Qt::SkipEmptyParts);
 
     for (QString line : lines) {
         line = line.trimmed();
-        // Невидимые маркеры первой строки
+        // Invisible first-line markers
         while (!line.isEmpty() && line.front().unicode() == 0xFEFF)
             line.remove(0, 1);
         if (line.isEmpty() || line.startsWith(QLatin1Char('#'))
             || line.startsWith(QStringLiteral("//")))
             continue;
 
-        // 0) Строка может содержать несколько user:pass через запятую
-        // (Astro): не разрезаем CSV, если это поля одной записи.
+        // 0) A line may hold several comma-separated user:pass pairs
+        // (Astro): do not split a CSV row that belongs to one record.
         if (!line.contains(QLatin1String("_|WARNING:"), Qt::CaseInsensitive)
             && line.contains(QLatin1Char(',')) && !line.contains(QLatin1Char('\t'))) {
             const QStringList parts = line.split(QLatin1Char(','));
@@ -98,9 +98,9 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
             }
         }
 
-        // 1) Формат с самодокументируемым баннером. Всё, что стоит до него,
-        // может быть "user:pass:" — разбираем как учётные данные. Но если
-        // перед баннером стоит Cookie:/Set-Cookie-заголовок, это не логин.
+        // 1) Self-documenting banner format. Everything before the banner
+        // may be "user:pass:" — parsed as credentials. But when
+        // a Cookie:/Set-Cookie header precedes the banner, it is not a login.
         const int banner = line.indexOf(QStringLiteral("_|WARNING:"), 0, Qt::CaseInsensitive);
         if (banner >= 0) {
             BulkEntry e;
@@ -112,7 +112,7 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
                 || line.startsWith(QStringLiteral("Set-Cookie:"), Qt::CaseInsensitive);
             if (!headerLike && !prefix.trimmed().isEmpty()) {
                 if (!splitUserPass(prefix, e)) {
-                    // user::<cookie> — логин без пароля (формат Astro)
+                    // user::<cookie> — login without a password (Astro format)
                     const QString user = stripTrailingColons(prefix.trimmed()).trimmed();
                     if (!user.isEmpty() && !user.contains(QLatin1Char(':')))
                         e.username = user;
@@ -123,7 +123,7 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
             continue;
         }
 
-        // 2) Скопированный Cookie:/Set-Cookie-заголовок или name=value.
+        // 2) A copied Cookie:/Set-Cookie header or a name=value pair.
         if (line.contains(QStringLiteral("ROBLOSECURITY"), Qt::CaseInsensitive)
             || line.startsWith(QStringLiteral("Cookie:"), Qt::CaseInsensitive)
             || line.startsWith(QStringLiteral("Set-Cookie:"), Qt::CaseInsensitive)) {
@@ -134,7 +134,7 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
             continue;
         }
 
-        // 3) CSV/TSV: user<TAB>pass<TAB>cookie, user,pass,cookie и т.п.
+        // 3) CSV/TSV: user<TAB>pass<TAB>cookie, user,pass,cookie, etc.
         const QStringList fields = line.split(
             QRegularExpression(QStringLiteral("[\t,;]")), Qt::SkipEmptyParts);
         if (fields.size() >= 2
@@ -160,7 +160,7 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
             continue;
         }
 
-        // 4) Голый токен cookie (длинная base64/hex-строка).
+        // 4) Bare cookie token (long base64/hex string).
         if (util::redact::looks_like_roblox_cookie(line)) {
             BulkEntry e;
             e.cookie = util::redact::normalizeCookieValue(line);
@@ -168,8 +168,8 @@ QList<BulkEntry> BulkImportParser::parse(const QString& text)
             continue;
         }
 
-        // 5) user:pass[:cookie]. Cookie без баннера — длинный хвост после ':',
-        // который не похож на обычный пароль (эвристика isHex/looks_like).
+        // 5) user:pass[:cookie]. A banner-less cookie is the long tail after ':',
+        // one that does not look like a plain password (isHex/looks_like heuristic).
         const int firstColon = line.indexOf(QLatin1Char(':'));
         if (firstColon <= 0)
             continue;

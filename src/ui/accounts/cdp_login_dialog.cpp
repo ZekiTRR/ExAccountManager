@@ -93,7 +93,7 @@ CdpLoginDialog::CdpLoginDialog(AppContext& ctx, QWidget* parent)
         updateCloseState();
     });
     connect(m_service, &CdpLoginService::allFinished, this, [this]() {
-        // Если ничего не удалось запустить (нет браузера) — закрываем сразу
+        // If nothing could be started (no browser) — close right away
         if (m_total == 0) {
             m_finished = true;
             accept();
@@ -144,9 +144,9 @@ void CdpLoginDialog::onLoginSucceeded(const QString& username, const QString& co
     ++m_done;
     updateSummary();
 
-    // Данные аккаунта уже получены из страницы браузера — сохраняем напрямую
-    // без повторной HTTP-валидации (пароль уходит в vault внутри сервиса).
-    // QPointer: диалог может быть закрыт раньше, чем завершится сохранение.
+    // Account data already came from the browser page — save it directly
+    // without another HTTP validation (the service stores the password in the vault).
+    // QPointer: the dialog may close before the save finishes.
     QPointer<CdpLoginDialog> self(this);
     m_ctx.accounts().addAccountValidated(cookie, userId, realUsername, realDisplayName,
                                          password,
@@ -195,7 +195,7 @@ void CdpLoginDialog::updateSummary()
 
 void CdpLoginDialog::reject()
 {
-    // Закрытие диалога = отмена оставшихся сессий
+    // Closing the dialog cancels the remaining sessions
     if (m_service)
         m_service->cancelAll();
     QDialog::reject();

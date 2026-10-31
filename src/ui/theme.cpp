@@ -34,9 +34,9 @@ QString qssColor(const QColor& c)
     return c.alpha() == 255 ? c.name() : rgba(c, c.alphaF());
 }
 
-// Графит + ирис. В тёмной теме filled-кнопки чуть глубже акцента,
-// чтобы белый текст оставался читаемым; accent — для иконок и активных
-// состояний (в макете он светлее).
+// Graphite + iris. In the dark theme filled buttons sit slightly deeper than
+// so white text stays readable; accent is for icons and active
+// states (in the mockup it is lighter).
 Palette paletteDark()
 {
     Palette c;

@@ -11,7 +11,7 @@ namespace ex::platform::cred {
 
 bool write(const QString& service, const QString& account, const QByteArray& secret)
 {
-    // Ограничение CRED_MAX_CREDENTIAL_BLOB_SIZE — 5*512 = 2560 байт; наши ключи 32 байта.
+    // CRED_MAX_CREDENTIAL_BLOB_SIZE is 5*512 = 2560 bytes; our keys are 32 bytes.
     if (secret.size() > CRED_MAX_CREDENTIAL_BLOB_SIZE) {
         EXLOG_WARN("cred") << "secret too large for credential manager";
         return false;
@@ -45,7 +45,7 @@ bool read(const QString& service, const QString& account, QByteArray& out)
 
     PCREDENTIALW cred = nullptr;
     if (!CredReadW(target.data(), CRED_TYPE_GENERIC, 0, &cred)) {
-        return false; // чаще всего ERROR_NOT_FOUND — штатная ситуация
+        return false; // usually ERROR_NOT_FOUND — a normal situation
     }
     out = QByteArray(reinterpret_cast<const char*>(cred->CredentialBlob),
                      static_cast<qsizetype>(cred->CredentialBlobSize));

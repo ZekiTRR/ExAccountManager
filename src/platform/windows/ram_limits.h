@@ -4,20 +4,20 @@
 
 namespace ex::platform {
 
-// [Feature №1] Лимиты потребления ОЗУ/CPU клиентами Roblox.
+// [Feature #1] RAM/CPU limits for the Roblox client.
 //
-// ОЗУ: жёсткий максимум рабочего набора через SetProcessWorkingSetSizeEx.
-// Не требует Job Object (Roblox-клиент часто уже находится в своём job),
-// не роняет аллокации: лишние страницы вытесняются в pagefile.
+// RAM: hard working-set maximum through SetProcessWorkingSetSizeEx.
+// Needs no Job Object (the Roblox client often already sits in its own job),
+// does not fail allocations: extra pages are evicted to the pagefile.
 //
-// CPU: Job Object CPU rate control. Если процесс уже в чужом job и назначение
-// невозможно — мягкий режим: пониженный приоритет + EcoQoS.
+// CPU: Job Object CPU rate control. When the process is already in a foreign job and
+// assignment is impossible — soft mode: lower priority + EcoQoS.
 class RamLimiter {
 public:
     struct LimitReport {
-        bool memory = false;   // лимит рабочего набора применён/снят
-        bool cpuHard = false;  // CPU ограничен через Job Object
-        bool cpuSoft = false;  // CPU ограничен мягко (приоритет/EcoQoS)
+        bool memory = false;   // working-set limit applied / cleared
+        bool cpuHard = false;  // CPU limited through a Job Object
+        bool cpuSoft = false;  // CPU limited softly (priority/EcoQoS)
 
         [[nodiscard]] bool any() const
         {
@@ -25,27 +25,27 @@ public:
         }
     };
 
-    // Тримминг working set процесса (мягкий режим). Возвращает false при ошибке.
+    // Trim the process working set (soft mode). Returns false on error.
     static bool trimWorkingSet(qint64 pid);
 
-    // Текущий working set и private bytes (МБ).
+    // Current working set and private bytes (MB).
     static bool queryMemory(qint64 pid, qint64& workingSetMb, qint64& privateMb);
 
-    // Жёсткий лимит ОЗУ (рабочий набор). Не требует Job Object.
+    // Hard RAM limit (working set). Needs no Job Object.
     static bool applyHardLimit(qint64 pid, qint64 memoryMb);
 
-    // Лимиты CPU/ОЗУ. cpuPercent=0 и/или memoryMb=0 означают «без ограничения».
-    // ОЗУ ограничивается всегда (working set), CPU — Job Object с мягким
-    // фолбэком, если процесс уже в чужом job. Handle job удерживается до
-    // clearLimits (имя/лимиты job без handle не снять).
+    // CPU/RAM limits. cpuPercent=0 and/or memoryMb=0 mean "unlimited".
+    // RAM is always limited (working set); CPU uses a Job Object with a soft
+    // with a fallback when the process is already in a foreign job. The job handle is kept
+    // clearLimits (a job's name/limits cannot be lifted without its handle).
     static LimitReport applyLimits(qint64 pid, int cpuPercent, qint64 memoryMb);
-    // Снять лимиты CPU/ОЗУ и вернуть приоритет/EcoQoS к прежним значениям.
+    // Clear CPU/RAM limits and restore the previous priority/EcoQoS.
     static bool clearLimits(qint64 pid);
 
-    // CPU: приоритет процесса (для performance-режима).
+    // CPU: process priority (for performance mode).
     static bool lowerPriority(qint64 pid);
 
-    // Снять лимит: завершить job (процесс продолжает жить).
+    // Clear the limit: terminate the job (the process keeps running).
     static bool removeHardLimit(qint64 pid);
 };
 

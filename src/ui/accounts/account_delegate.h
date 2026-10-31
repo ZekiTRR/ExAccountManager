@@ -6,9 +6,9 @@ namespace ex::ui {
 
 class AvatarCache;
 
-// Строки списка аккаунтов в стиле нового макета: заголовок группы с
-// chevron/счётчиком/«Выбрать», карточка аккаунта с чекбоксом, аватаром,
-// presence-точкой, @username, последним запуском и избранным.
+// Account list rows in the new mockup style: group header with
+// chevron/counter/"Select", an account card with checkbox, avatar,
+// presence dot, @username, last launch and favourite.
 class AccountDelegate : public QStyledItemDelegate {
     Q_OBJECT
 public:

@@ -24,9 +24,10 @@ static_assert(crypto_aead_aes256gcm_NPUBBYTES == 12);
 static_assert(crypto_aead_aes256gcm_ABYTES == 16);
 
 struct Aead {
-    // AES-256-GCM; на x64 c AES-NI (все современные CPU) аппаратно ускорен.
-    // sodium_init() обязателен до проверки: без него detection не видит AES-NI
-    // и любая расшифровка после перезапуска падала бы с "aes-ni-unavailable".
+    // AES-256-GCM; on x64 with AES-NI (every modern CPU) it is hardware
+    // accelerated. sodium_init() must run before the check: without it the
+    // detection does not see AES-NI and any decryption after a restart would
+    // fail with "aes-ni-unavailable".
     static bool available()
     {
         return ensureSodium() && crypto_aead_aes256gcm_is_available() != 0;
@@ -125,9 +126,9 @@ QByteArray buildHeader(VaultKey::Mode mode, const QByteArray& salt,
 
 QByteArray wrapAad(const QByteArray& header)
 {
-    // Связывает magic/version/mode/salt/wrapNonce с обёрнутым ключом:
-    // подмена байта режима не позволит расшифровать ключ другим способом.
-    return header.left(38); // всё до wrappedKey
+    // Binds magic/version/mode/salt/wrapNonce to the wrapped key: flipping the
+    // mode byte will not let the key be unwrapped another way.
+    return header.left(38); // everything before wrappedKey
 }
 
 } // namespace
@@ -141,15 +142,15 @@ QString VaultKey::deviceKeyFilePath(const QString& vaultPath)
 
 bool VaultKey::storeDeviceKeyFile(const QString& vaultPath, const QByteArray& key)
 {
-    // Ключ под DPAPI CurrentUser: расшифровывает любой контекст того же
-    // пользователя (в т.ч. elevated) — в отличие от Credential Manager.
+    // Key under DPAPI CurrentUser: any context of the same user can decrypt it
+    // (including elevated) — unlike Credential Manager.
     bool ok = false;
     const QByteArray blob = platform::dpapi::protect(key, &ok);
     if (!ok || blob.isEmpty())
         return false;
     if (!ex::util::fs::writeAtomic(deviceKeyFilePath(vaultPath), blob))
         return false;
-    // Readback-верификация (защита от гонки, приём RM)
+    // Readback verification (guards against races, an RM technique)
     bool ok2 = false;
     const QByteArray check = platform::dpapi::unprotect(
         ex::util::fs::readFile(deviceKeyFilePath(vaultPath)), &ok2);
@@ -182,7 +183,7 @@ bool VaultKey::deleteLegacyCredentialKey(const QString& service)
 bool VaultKey::create(const QString& vaultPath, const QString& password,
                       const QString& service)
 {
-    Q_UNUSED(service); // ключ устройства — DPAPI-файл <vault>.key
+    Q_UNUSED(service); // device key lives in the DPAPI file <vault>.key
     if (!ensureSodium() || !Aead::available()) {
         EXLOG_ERROR("vault") << "crypto unavailable";
         return false;
@@ -258,12 +259,12 @@ bool VaultKey::unlock(const QString& vaultPath, const QString& password,
     }
     QByteArray wrappingKey;
     if (h.mode == Mode::Device) {
-        // Основной путь: DPAPI-файл <vault>.key
+        // Primary path: the DPAPI file <vault>.key
         bool ok = false;
         wrappingKey = deviceKeyFromFile(vaultPath, &ok);
         if (!ok || wrappingKey.size() != 32) {
-            // Legacy: ключ из Credential Manager (старые vault до миграции).
-            // Если и его нет — устройство «потеряло» ключ.
+            // Legacy: key from Credential Manager (vaults created before the migration).
+            // If that is missing too, this device has "lost" the key.
             wrappingKey = legacyCredentialKey(service, &ok);
             if (!ok || wrappingKey.size() != 32) {
                 lastError = QStringLiteral("device-key-missing");
@@ -307,7 +308,7 @@ bool VaultKey::unlockWithKey(const QString& vaultPath, const QByteArray& wrappin
                                                        : QStringLiteral("corrupted");
         return false;
     }
-    // Проверяем целостность тела тем же ключом (полная разблокировка)
+    // Verify body integrity with the same key (full unlock)
     QFile f(vaultPath);
     if (!f.open(QIODevice::ReadOnly)) {
         lastError = QStringLiteral("io");
@@ -369,7 +370,8 @@ bool VaultKey::rekey(const QString& vaultPath, const QByteArray& dataKey,
 
     if (!ex::util::fs::writeAtomic(vaultPath, header + sealedBody))
         return false;
-    // .bak перезаписываем новым содержимым, чтобы старый пароль не открывал бэкап (приём RM)
+    // Rewrite the .bak with the new contents so the old password cannot open
+    // the backup (an RM technique)
     QFile::copy(vaultPath, vaultPath + QStringLiteral(".bak"));
     return true;
 }
@@ -407,7 +409,7 @@ QByteArray VaultKey::deriveArgon2id(const QString& password, const QByteArray& s
         return {};
     QByteArray key(crypto_aead_aes256gcm_KEYBYTES, Qt::Uninitialized);
     const QByteArray pw = password.toUtf8();
-    // Параметры RM: 19 MiB, opslimit 3, parallelism 1 (Argon2id v1.3).
+    // RM parameters: 19 MiB, opslimit 3, parallelism 1 (Argon2id v1.3).
     if (crypto_pwhash_argon2id(
             reinterpret_cast<unsigned char*>(key.data()),
             static_cast<unsigned long long>(key.size()),

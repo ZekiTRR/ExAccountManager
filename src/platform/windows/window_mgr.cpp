@@ -18,7 +18,7 @@ HWND hwndFor(qint64 pid)
 struct MonCtx {
     int wantedIndex = 0;
     int currentIndex = 0;
-    RECT work{};      // рабочая область (без панели задач)
+    RECT work{};      // work area (excluding the taskbar)
     bool found = false;
 };
 
@@ -77,12 +77,12 @@ bool WindowMgr::applyProfile(qint64 pid, const ex::model::WindowProfile& p)
     if (y < 0)
         y = mon.top + ((mon.bottom - mon.top) - h) / 2;
 
-    // Ограничить размер рабочей областью монитора
+    // Keep the window inside the monitor work area
     if (w > mon.right - mon.left) w = mon.right - mon.left;
     if (h > mon.bottom - mon.top) h = mon.bottom - mon.top;
 
-    // SWP_NOSENDCHANGING обходит WM_GETMINMAXINFO/WM_WINDOWPOSCHANGING:
-    // Roblox иначе не даёт уменьшить окно ниже своего минимума.
+    // SWP_NOSENDCHANGING bypasses WM_GETMINMAXINFO/WM_WINDOWPOSCHANGING:
+    // otherwise Roblox refuses to shrink the window below its own minimum.
     SetWindowPos(hwnd, nullptr, x, y, w, h,
                  SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
 
@@ -137,7 +137,7 @@ bool WindowMgr::focus(qint64 pid)
     HWND hwnd = hwndFor(pid);
     if (!hwnd)
         return false;
-    // Скрытое окно сначала показываем, свёрнутое — восстанавливаем.
+    // Show a hidden window first, restore a minimized one.
     if (!IsWindowVisible(hwnd))
         ShowWindow(hwnd, SW_SHOW);
     else if (IsIconic(hwnd))
@@ -146,7 +146,7 @@ bool WindowMgr::focus(qint64 pid)
     if (SetForegroundWindow(hwnd))
         return true;
 
-    // Фолбэк из RM: присоединить input-поток к foreground-потоку и повторить.
+    // RM fallback: attach our input thread to the foreground thread and retry.
     const DWORD fgThread = GetWindowThreadProcessId(GetForegroundWindow(), nullptr);
     const DWORD thisThread = GetCurrentThreadId();
     if (fgThread && fgThread != thisThread) {
@@ -199,13 +199,13 @@ bool WindowMgr::arrangeGrid(const QList<qint64>& pids)
         for (int c = 0; c < inRow; ++c) {
             HWND hwnd = hwndFor(pids[placed]);
             if (hwnd) {
-                // Свёрнутое/максимизированное окно не примет новый rect,
-                // пока не восстановлено; скрытое — не видно.
+                // A minimized/maximized window refuses a new rect,
+                // until restored; a hidden window stays hidden.
                 if (IsIconic(hwnd) || IsZoomed(hwnd))
                     ShowWindow(hwnd, SW_RESTORE);
                 if (!IsWindowVisible(hwnd))
                     ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-                // Центрировать последнюю неполную строку (приём RM)
+                // Centre the last incomplete row (RM's approach)
                 const int rowOffset = (r == rows - 1 && inRow < cols)
                                           ? (cols - inRow) * cellW / 2 : 0;
                 const int x = wa.left + c * cellW + rowOffset;

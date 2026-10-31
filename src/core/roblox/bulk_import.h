@@ -6,29 +6,29 @@
 
 namespace ex::roblox {
 
-// Парсер bulk-импорта: понимает все форматы трёх менеджеров.
+// Bulk import parser: understands all formats of the three managers.
 //
 //   user:pass
 //   user:pass:cookie
 //   user::cookie
-//   cookie (голый токен)
-//   _|WARNING:-DO-NOT-SHARE-THIS...|<token>   (полное значение cookie)
-//   Cookie: .ROBLOSECURITY=<value>; Path=/    (скопированный заголовок)
+//   cookie (bare token)
+//   _|WARNING:-DO-NOT-SHARE-THIS...|<token>   (full cookie value)
+//   Cookie: .ROBLOSECURITY=<value>; Path=/    (copied header)
 //   email:pass
 //
-// Разделители записей: перевод строки. CSV/TSV-поля (таб, запятая, ';')
-// поддерживаются, если последнее поле — cookie. Комментарии: # и //.
+// Record separator: newline. CSV/TSV fields (tab, comma, ';')
+// are supported when the last field is a cookie. Comments: # and //.
 struct BulkEntry {
-    QString username;   // может быть пустым, если только cookie
+    QString username;   // may be empty when only a cookie is given
     QString password;
-    QString cookie;     // полное значение cookie (warning-префикс сохраняется)
+    QString cookie;     // full cookie value (the warning prefix is kept)
 };
 
 class BulkImportParser {
 public:
     static QList<BulkEntry> parse(const QString& text);
 
-    // Разбор файла .txt/.csv/.tsv (кодировка UTF-8 / UTF-16 / Latin1 fallback).
+    // Parse a .txt/.csv/.tsv file (UTF-8 / UTF-16, Latin1 fallback).
     static QList<BulkEntry> parseFile(const QString& path);
 };
 

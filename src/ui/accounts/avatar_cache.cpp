@@ -15,9 +15,9 @@
 namespace ex::ui {
 namespace {
 
-constexpr int kAvatarPx = 96; // хватает до ~2.5x HiDPI при отрисовке в 40px
+constexpr int kAvatarPx = 96; // lasts up to ~2.5x HiDPI when painted at 40px
 
-// Скруглённый квадрат из загруженного аватара (форма из макета).
+// Rounded square from the downloaded avatar (shape from the mockup).
 QPixmap makeRounded(const QImage& image)
 {
     const QPixmap square = QPixmap::fromImage(image.scaled(
@@ -48,7 +48,7 @@ QString initialsFor(const QString& name)
         out = trimmed.isEmpty() ? QStringLiteral("?")
                                 : trimmed.left(2).toUpper();
     } else if (out.size() == 1 && !words.isEmpty()) {
-        // Для имени без пробелов берём следующую заглавную букву (VoidWalker -> VW).
+        // For a name without spaces, take the next capitals (VoidWalker -> VW).
         const QString& word = words.first();
         for (int i = 1; i < word.size(); ++i) {
             if (word.at(i).isUpper()) {

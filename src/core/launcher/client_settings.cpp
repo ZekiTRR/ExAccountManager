@@ -53,7 +53,7 @@ bool ClientSettings::writeSettingsToDir(const QString& clientSettingsDir, const 
         return false;
     const QString path = clientSettingsDir + QStringLiteral("/ClientAppSettings.json");
 
-    // Бэкап оригинала (однократно)
+    // Back up the original once
     const QString backup = clientSettingsDir + QStringLiteral("/ClientAppSettings")
         + QLatin1String(kBackupSuffix);
     if (!QFile::exists(backup) && QFile::exists(path))
@@ -63,7 +63,7 @@ bool ClientSettings::writeSettingsToDir(const QString& clientSettingsDir, const 
     if (!ex::util::fs::writeAtomic(path, data))
         return false;
 
-    // Readback-верификация (приём Astro)
+    // Readback verification (Astro's approach)
     QFile check(path);
     if (!check.open(QIODevice::ReadOnly))
         return false;

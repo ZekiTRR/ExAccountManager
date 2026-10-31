@@ -9,7 +9,7 @@ namespace ex::model {
 struct Group {
     qint64 id = 0;
     QString name;
-    QString colorHex;     // "#RRGGBB" или пусто
+    QString colorHex;     // "#RRGGBB" or empty
     bool collapsed = false;
     int sortOrder = 0;
 
@@ -17,17 +17,17 @@ struct Group {
     static Group fromJson(const QJsonObject& o);
 };
 
-// ---------------------------------------------------------------- Window profile [feature №2]
-// Произвольный размер/позиция окна клиента Roblox с самого запуска.
+// ---------------------------------------------------------------- Window profile [feature #2]
+// Arbitrary size/position for the Roblox client window from the first frame.
 struct WindowProfile {
     bool enabled = false;
-    int x = -1, y = -1;          // -1 = не задано (центр/как есть)
-    int width = -1, height = -1; // -1 = не задано
-    int monitor = 0;             // индекс монитора (0 = primary)
+    int x = -1, y = -1;          // -1 = unset (center / as-is)
+    int width = -1, height = -1; // -1 = unset
+    int monitor = 0;             // monitor index (0 = primary)
     enum class State {
         Normal = 0,
         Minimized,
-        Hidden,      // спрятано без фокуса (для фоновых)
+        Hidden,      // hide without focus (for background clients)
         Maximized,
     } state = State::Normal;
 
@@ -36,37 +36,37 @@ struct WindowProfile {
     static WindowProfile fromJson(const QJsonObject& o);
 };
 
-// ---------------------------------------------------------------- RAM limit [feature №1]
+// ---------------------------------------------------------------- RAM limit [feature #1]
 struct RamLimit {
     enum class Mode {
         Off = 0,
-        Soft,   // тримминг working set + potato + адаптивный FPS
-        Hard,   // жёсткий максимум рабочего набора (подкачка/фризы)
+        Soft,   // working-set trimming + potato + adaptive FPS
+        Hard,   // hard working-set maximum (paging/freezes)
     } mode = Mode::Off;
-    qint64 limitMb = 0;          // 0 = не задано
-    qint64 trimThresholdMb = 0;  // для Soft: триммить, когда working set выше
+    qint64 limitMb = 0;          // 0 = unset
+    qint64 trimThresholdMb = 0;  // for Soft: trim once the working set exceeds
 
     QJsonObject toJson() const;
     static RamLimit fromJson(const QJsonObject& o);
 };
 
 // ---------------------------------------------------------------- Launch target
-// Куда запускать аккаунт. Чистые данные: план ≠ действие.
+// Where to launch the account. Pure data: a plan is not an action.
 struct LaunchTarget {
     enum class Kind {
-        Place = 0,        // просто placeId (случайный/лучший сервер)
-        Job,              // конкретный сервер (placeId + jobId)
-        PrivateServer,    // VIP по accessCode/linkCode
-        FollowUser,       // зайти в сервер игрока (userId)
-        ShareLink,        // roblox.com/share?code=... (резолвится API)
+        Place = 0,        // just a placeId (random/best server)
+        Job,              // a specific server (placeId + jobId)
+        PrivateServer,    // VIP by accessCode/linkCode
+        FollowUser,       // join a player's server (userId)
+        ShareLink,        // roblox.com/share?code=... (resolved through the API)
     } kind = Kind::Place;
 
     qint64 placeId = 0;
     QString jobId;
-    QString privateServerCode;   // accessCode или linkCode
+    QString privateServerCode;   // accessCode or linkCode
     qint64 followUserId = 0;
     QString shareCode;
-    bool teleport = false;       // флаг isTeleport в URI
+    bool teleport = false;       // isTeleport flag in the URI
 
     bool isValid() const
     {
@@ -94,13 +94,13 @@ struct LaunchTarget {
 };
 
 // ---------------------------------------------------------------- Launch preset
-// Пресет запуска (RM: файлы на диске; Astro: launch profile).
+// Launch preset (RM: files on disk; Astro: launch profile).
 struct LaunchPreset {
     qint64 id = 0;
     QString name;
     LaunchTarget target;
-    int fpsCap = 0;              // 0 = не менять
-    qint64 groupId = 0;          // 0 = все
+    int fpsCap = 0;              // 0 = leave unchanged
+    qint64 groupId = 0;          // 0 = all
     QString note;
     WindowProfile window;
 
@@ -108,42 +108,42 @@ struct LaunchPreset {
     static LaunchPreset fromJson(const QJsonObject& o);
 };
 
-// ---------------------------------------------------------------- VIP server [feature №4]
+// ---------------------------------------------------------------- VIP server [feature #4]
 struct PrivateServer {
     qint64 id = 0;
-    qint64 ownerId = 0;          // аккаунт-владелец (у кого VIP)
-    QString name;                // человекочитаемое
+    qint64 ownerId = 0;          // owning account (who holds the VIP)
+    QString name;                // human-readable
     qint64 placeId = 0;
-    QString code;                // privateServerLinkCode или accessCode
+    QString code;                // privateServerLinkCode or accessCode
     QDateTime added;
-    QString gameName;            // кэш названия игры
-    QString gameIconUrl;         // кэш иконки
+    QString gameName;            // game name cache
+    QString gameIconUrl;         // icon cache
 
     QJsonObject toJson() const;
     static PrivateServer fromJson(const QJsonObject& o);
 };
 
 // ---------------------------------------------------------------- Instance
-// Запущенный клиент (или ожидаемый к запуску).
+// A running client (or one about to start).
 struct InstanceInfo {
     enum class State {
-        Launching = 0,  // запрошен запуск, ждём процесс
-        Running,        // процесс есть и атрибутирован
-        Unattributed,   // процесс есть, аккаунт неизвестен
-        Crashed,        // упал
+        Launching = 0,  // launch requested, waiting for the process
+        Running,        // process exists and is attributed
+        Unattributed,   // process exists, account unknown
+        Crashed,        // crashed
         Stopped,
     } state = State::Launching;
 
     qint64 accountId = 0;
     QString accountUsername;
     qint64 pid = 0;
-    qint64 processCreateTimeMs = 0; // защита от переиспользования PID
-    QString launchToken;            // launchtime-токен из командной строки
+    qint64 processCreateTimeMs = 0; // PID-reuse protection
+    QString launchToken;            // launchtime token from the command line
     bool attributionExact = false;  // false = Inferred (best guess)
     QDateTime startedAt;
     QDateTime lastSeenAt;
 
-    // Телеметрия (обновляется монитором)
+    // Telemetry (refreshed by the monitor)
     double cpuPercent = 0.0;
     qint64 workingSetMb = 0;
     qint64 privateBytesMb = 0;

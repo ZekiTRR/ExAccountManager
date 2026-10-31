@@ -24,7 +24,7 @@ namespace {
 
 QString chooseBestServer(const QList<ex::roblox::ServerEntry>& servers)
 {
-    // «Лучший публичный»: максимум игроков, но не заполненный (RAM/Astro).
+    // "Best public": most players but not full (RAM/Astro).
     QString best;
     int bestPlayers = -1;
     for (const auto& s : servers) {
@@ -50,9 +50,9 @@ QString chooseRandomServer(const QList<ex::roblox::ServerEntry>& servers)
     return candidates.at(QRandomGenerator::global()->bounded(candidates.size()));
 }
 
-// Окно Roblox появляется через несколько секунд после старта процесса:
-// ждём его и повторяем профиль ещё пару раз — загрузчик может переустановить
-// размер окна после splash-экрана.
+// The Roblox window appears seconds after the process starts:
+// wait for it and re-apply the profile a few times — the loader may reset it
+// the window size after the splash screen.
 void applyProfileWhenReady(QObject* context, qint64 pid,
                            const ex::model::WindowProfile& profile,
                            int waitLeft, int settleLeft)
@@ -99,8 +99,8 @@ LaunchService::LaunchService(ex::roblox::RobloxApi& api,
             return;
         const auto& acc = *accOpt;
 
-        // Окно: размер, выбранный в панели запуска для этого batch, важнее
-        // per-account profile из fields["_window"].
+        // Window: the size picked in the launch panel for this batch wins over
+        // per-account profile from fields["_window"].
         ex::model::WindowProfile wp;
         if (m_launchWindows.contains(info.accountId)) {
             wp = m_launchWindows.take(info.accountId);
@@ -112,7 +112,7 @@ LaunchService::LaunchService(ex::roblox::RobloxApi& api,
         if (wp.enabled)
             applyProfileWhenReady(this, info.pid, wp, 20, 2);
 
-        // RAM limit [№1]
+        // RAM limit [#1]
         ex::model::RamLimit rl;
         if (acc.fields.contains(QStringLiteral("_ram"))) {
             const QJsonObject o = QJsonDocument::fromJson(
@@ -131,7 +131,7 @@ LaunchService::LaunchService(ex::roblox::RobloxApi& api,
             break;
         }
 
-        // Ledger сессии для аналитики [№6]: place/job — из фактического запуска.
+        // Session ledger for analytics [#6]: place/job come from the real launch.
         if (!m_ledgerIds.contains(info.accountId)) {
             const LaunchTarget target = m_launchTargets.value(info.accountId);
             qint64 ledgerId = 0;
@@ -152,8 +152,8 @@ LaunchService::LaunchService(ex::roblox::RobloxApi& api,
 
 LaunchService::~LaunchService()
 {
-    // Нормальный выход: закрываем активные сессии временем выхода, чтобы
-    // ledger не считал простой после перезапуска.
+    // Normal exit: close active sessions with the exit time so
+    // the ledger does not count the idle gap after a restart.
     for (auto it = m_ledgerIds.constBegin(); it != m_ledgerIds.constEnd(); ++it) {
         if (it.value())
             m_store.sessionEnd(it.value(), QStringLiteral("app-exit"));
@@ -184,15 +184,15 @@ void LaunchService::launchBatch(const BatchRequest& request)
     m_concurrency = std::clamp(request.concurrency, 1, 8);
     m_delayMs = std::max(0, request.delaySeconds) * 1000;
 
-    // RM: перед запуском стираем RobloxCookies.dat, чтобы клиент не
-    // ассоциировал аккаунты между запусками.
+    // RM: wipe RobloxCookies.dat before launch so the client does not
+    // associate accounts across launches.
     if (!ex::platform::clearRobloxCookieFile()) {
         EXLOG_WARN("launcher")
             << "could not clear RobloxCookies.dat before launch";
     }
 
     if (!m_vault.isUnlocked()) {
-        // Без vault нет cookie: честно сообщаем по каждому аккаунту.
+        // No vault means no cookie: reported honestly per account.
         for (qint64 id : request.accountIds) {
             LaunchResult r;
             r.accountId = id;
@@ -234,8 +234,8 @@ void LaunchService::launchBatch(const BatchRequest& request)
     m_batchOk = 0;
     m_batchFail = 0;
 
-    // SameServer без jobId: выбрать ОДИН сервер на всю пачку (не случайный
-    // на каждый аккаунт, иначе режим «один сервер» врёт).
+    // SameServer without jobId: pick ONE server for the whole batch (not a random
+    // per account, otherwise "one server" mode lies).
     const bool needSameServerPick = !isShareLink
         && request.mode == BatchMode::SameServer
         && jobs.first().target.kind == LaunchTarget::Kind::Place
@@ -340,7 +340,7 @@ void LaunchService::runJob(const Job& job)
                 [this, job, target, done](bool ok, const QString& ticket,
                                           const QString& err,
                                           const QString& effectiveCookie) {
-                    Q_UNUSED(effectiveCookie); // ротацию уже сохранил cookieRotated
+                    Q_UNUSED(effectiveCookie); // rotation was already saved as cookieRotated
                     if (!ok) {
                         if (err == QLatin1String("cookie-rejected"))
                             emit sessionInvalid(job.accountId, err);
@@ -360,9 +360,9 @@ void LaunchService::runJob(const Job& job)
                         return;
                     }
 
-                    // FPS-лимит не применяем: клиент работает без капа.
+                    // No FPS cap is applied: the client runs uncapped.
 
-                    // Регистрируем ожидание ДО hand-off в Windows (анти-сирота, Astro)
+                    // Register the expectation BEFORE handing off to Windows (anti-orphan, Astro)
                     m_registry.expectLaunch(job.accountId, launchToken);
 
                     if (job.options.closePreviousInstance) {
@@ -374,9 +374,9 @@ void LaunchService::runJob(const Job& job)
                         }
                     }
 
-                    // Выбранный в настройках клиент важнее системной
-                    // ассоциации. Если путь устарел/пропал — откатываемся
-                    // на зарегистрированный обработчик, как RM.
+                    // The client chosen in settings outranks the system
+                    // associations. If the path is stale or gone we fall back
+                    // on the registered handler, like RM.
                     const QString selectedExe =
                         ex::platform::resolveRobloxPlayerPath(job.options.robloxPath);
                     if (!job.options.robloxPath.isEmpty() && selectedExe.isEmpty()) {
@@ -414,14 +414,14 @@ void LaunchService::runJob(const Job& job)
                 });
         };
 
-        // Тикет получаем тем же способом, что и RAM: cookie из vault,
-        // CSRF-челлендж обрабатывает authedPost, ротации Set-Cookie — общий
-        // cookieRotated-механизм.
+        // The ticket uses the same method as RAM: cookie from the vault,
+        // authedPost handles the CSRF challenge, Set-Cookie rotations the shared
+        // cookieRotated mechanism.
         runTicket(cookie);
     };
 
     if (job.target.kind == LaunchTarget::Kind::ShareLink) {
-        // Резолвим share-ссылку от имени целевого аккаунта (приём Astro v12)
+        // Resolve the share link as the target account (Astro v12 approach)
         m_api.resolveShareLink(
             cookie, job.target.shareCode,
             [this, job, proceed, done](bool ok, ex::roblox::ShareLinkInfo info,
@@ -495,7 +495,7 @@ void LaunchService::finishJob(const Job& job, bool ok, const QString& error,
             if (!m_delayTimer.isActive())
                 m_delayTimer.start(m_delayMs);
         } else {
-            // Не рекурсируем из runJob, если он завершился синхронно.
+            // Do not recurse out of runJob when it finished synchronously.
             QTimer::singleShot(0, this, &LaunchService::pumpQueue);
         }
     }
@@ -508,7 +508,7 @@ bool LaunchService::closeInstance(qint64 accountId, bool graceful)
         return false;
     if (graceful)
         return ex::platform::requestGracefulClose(info->pid);
-    // Kill-verified: имя образа + launchtime-токен (тройная проверка, RM)
+    // Kill-verified: image name + launchtime token (triple check, RM)
     return ex::platform::killVerified(info->pid, QStringLiteral("RobloxPlayerBeta.exe"),
                                       info->launchToken);
 }
@@ -516,7 +516,7 @@ bool LaunchService::closeInstance(qint64 accountId, bool graceful)
 int LaunchService::closeAll()
 {
     int closed = 0;
-    // Только атрибутированные нами инстансы: чужие клиенты не убиваем.
+    // Only instances we attributed: foreign clients are never killed.
     for (const auto& inst : m_registry.instances()) {
         if (!inst.pid)
             continue;

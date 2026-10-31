@@ -60,19 +60,19 @@ void WebSocket::close()
     if (m_state == State::Disconnected)
         return;
     if (m_state == State::Open) {
-        // Вежливое закрытие: opcode close
+        // Polite shutdown: close opcode
         sendFrame(kOpClose, QByteArray());
         m_state = State::Closing;
         m_socket.flush();
     }
-    m_socket.abort(); // CDP-сервер не требует graceful; надёжнее разорвать
+    m_socket.abort(); // The CDP server needs no graceful close; dropping the socket is safer
     m_state = State::Disconnected;
     emit disconnected();
 }
 
 void WebSocket::onSocketConnected()
 {
-    // HTTP Upgrade рукопожатие
+    // HTTP Upgrade handshake
     unsigned char raw[16];
     ex::crypto::randomBytes(raw, sizeof raw);
     const QString key = QString::fromLatin1(QByteArray(reinterpret_cast<const char*>(raw), sizeof raw).toBase64());
@@ -86,8 +86,8 @@ void WebSocket::onSocketConnected()
         "Sec-WebSocket-Version: 13\r\n"
         "\r\n")
         .arg(m_path, m_host).arg(m_port).arg(key);
-    // ВАЖНО: не предлагаем permessage-deflate — сервер может согласовать
-    // сжатие, а наш парсер не умеет разжимать payload.
+    // IMPORTANT: never offer permessage-deflate — the server may accept it
+    // compression, and our parser cannot inflate a payload.
     m_socket.write(req.toUtf8());
 }
 
@@ -96,7 +96,7 @@ void WebSocket::onSocketReadyRead()
     m_rxBuffer += m_socket.readAll();
 
     if (m_state == State::Connecting) {
-        // Ждём полный HTTP-ответ (до \r\n\r\n)
+        // Wait for the complete HTTP response (up to \r\n\r\n)
         const int headerEnd = m_rxBuffer.indexOf("\r\n\r\n");
         if (headerEnd < 0)
             return;
@@ -113,10 +113,10 @@ void WebSocket::onSocketReadyRead()
         }
         m_state = State::Open;
         emit connected();
-        // Остаток буфера — уже кадры, падаем дальше
+        // The buffer tail is already frames, fall through
     }
 
-    // Разбор кадров
+    // Frame parsing
     while (true) {
         Frame f;
         int consumed = 0;
@@ -126,7 +126,7 @@ void WebSocket::onSocketReadyRead()
                 EXLOG_WARN("ws") << "frame parse error:" << err;
                 close();
             }
-            return; // ждём ещё данных
+            return; // waiting for more data
         }
         m_rxBuffer.remove(0, consumed);
 
@@ -134,12 +134,12 @@ void WebSocket::onSocketReadyRead()
         case kOpText:
         case kOpBinary: {
             if (f.fin && !m_fragmenting) {
-                // Обычное одиночное сообщение
+                // Ordinary single message
                 if (f.opcode == kOpText)
                     emit textMessageReceived(QString::fromUtf8(f.payload));
                 break;
             }
-            // Начало фрагментированного сообщения
+            // Start of a fragmented message
             m_fragmenting = true;
             m_fragmentOpcode = f.opcode;
             m_fragmentBuffer += f.payload;
@@ -159,7 +159,7 @@ void WebSocket::onSocketReadyRead()
                 if (m_fragmentOpcode == kOpText)
                     emit textMessageReceived(msg);
                 else
-                    emit textMessageReceived(QString::fromUtf8(m_fragmentBuffer)); // binary как текст для CDP не приходит
+                    emit textMessageReceived(QString::fromUtf8(m_fragmentBuffer)); // binary never arrives as text for CDP
             }
             break;
         }
@@ -200,7 +200,7 @@ bool WebSocket::parseFrame(const QByteArray& buffer, Frame& out, int& consumed, 
             len = (len << 8) | static_cast<quint8>(buffer[offset + i]);
         offset += 8;
     }
-    // Защита от мусора: CDP-сообщения не больше ~256 МБ
+    // Garbage guard: CDP messages are capped at ~256 MB
     if (len > 256ull * 1024 * 1024) {
         err = QStringLiteral("frame too large");
         return false;
@@ -214,7 +214,7 @@ bool WebSocket::parseFrame(const QByteArray& buffer, Frame& out, int& consumed, 
         offset += 4;
     }
     if (static_cast<quint64>(buffer.size()) < offset + len)
-        return false; // ждём остаток кадра
+        return false; // waiting for the rest of the frame
 
     QByteArray payload = buffer.mid(offset, static_cast<int>(len));
     if (masked) {
@@ -233,9 +233,9 @@ void WebSocket::handleControlFrame(const Frame& f)
         sendFrame(kOpPong, f.payload);
         break;
     case kOpPong:
-        break; // не ждём pong — CDP не пингует
+        break; // no pong wait — CDP does not ping
     case kOpClose:
-        break;  // обработается вызывающим кодом
+        break;  // is handled by the calling code
     default:
         break;
     }
@@ -251,7 +251,7 @@ bool WebSocket::sendTextMessage(const QString& message)
 
 void WebSocket::sendFrame(quint8 opcode, const QByteArray& payload)
 {
-    // Исходящие клиентские кадры ВСЕГДА маскируются (RFC 6455 §5.3)
+    // Outgoing client frames are ALWAYS masked (RFC 6455 §5.3)
     QByteArray frame;
     frame.reserve(payload.size() + 14);
 

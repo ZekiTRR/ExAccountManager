@@ -7,8 +7,8 @@ class QPushButton;
 
 namespace ex::ui {
 
-// Сегмент-контрол M3 (mutually exclusive pills в общей рамке).
-// Аналог QComboBox для коротких наборов: currentIndex()/currentData().
+// M3 segmented control (mutually exclusive pills in one frame).
+// QComboBox stand-in for short sets: currentIndex()/currentData().
 class Segmented : public QFrame {
     Q_OBJECT
 public:

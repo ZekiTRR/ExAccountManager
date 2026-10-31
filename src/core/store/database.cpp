@@ -60,7 +60,7 @@ QVariant Database::scalar(const QString& sql)
 
 int Database::userVersion() const
 {
-    // C-API не имеет прямой функции — читаем PRAGMA
+    // The C-API has no direct function — read the PRAGMA
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(m_db, "PRAGMA user_version", -1, &stmt, nullptr) != SQLITE_OK)
         return 0;
@@ -204,13 +204,13 @@ CREATE TABLE IF NOT EXISTS schedule_tasks (
         EXLOG_INFO("db") << "schema v1 created";
     }
     // ---------------------------------------------------------------- schema v2
-    // Индекс для дедупликации по UserId (RAM), username может меняться.
+    // Index deduplicating by UserId (RAM); usernames can change.
     if (userVersion() < 2) {
         exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);"));
         setUserVersion(2);
         EXLOG_INFO("db") << "schema v2 applied";
     }
-    // Будущие миграции: if (userVersion() < 3) { ...; setUserVersion(3); }
+    // Future migrations: if (userVersion() < 3) { ...; setUserVersion(3); }
     return true;
 }
 

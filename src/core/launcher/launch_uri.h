@@ -6,32 +6,32 @@
 
 namespace ex::launcher {
 
-// Разобранный ввод поля Place: id/URL/VIP/share/roblox://.
+// Parsed Place field input: id/URL/VIP/share/roblox://.
 struct ParsedInput {
     qint64 placeId = 0;
-    QString jobId;               // gameInstanceId из URL, если был
+    QString jobId;               // gameInstanceId from the URL, when present
     QString privateServerCode;   // privateServerLinkCode
-    QString shareCode;           // code из roblox.com/share
+    QString shareCode;           // code from roblox.com/share
 
     bool hasAnyTarget() const { return placeId > 0 || !shareCode.isEmpty(); }
 };
 
-// Построение URI запуска roblox-player: (ядро, одинаковое у всех трёх менеджеров)
+// Builds the roblox-player: launch URI (the core shared by all three managers)
 //
 //   roblox-player:1+launchmode:play+gameinfo:<ticket>+launchtime:<ms>+
 //                  placelauncherurl:<percent-encoded URL>+browsertrackerid:<id>
 //                  +robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp
 //
-// Формат проверен RM (process.rs) и Astro (auth_tools.py):
-//  - placelauncherurl кодируется целиком (включая ':' '/' '?' '&' '=');
-//  - auth ticket тоже percent-encoded: в base64 бывают '+' '/' '=', которые
-//    иначе ломают '+' -разделитель полей URI;
-//  - launchtime — epoch-ms, строго возрастающий (атрибуция PID).
+// Format verified by RM (process.rs) and Astro (auth_tools.py):
+//  - placelauncherurl is encoded as a whole (':' '/' '?' '&' '=' too);
+//  - the auth ticket is percent-encoded too: base64 may hold '+' '/' '=' which
+//    otherwise they break the URI field's '+' separator;
+//  - launchtime is epoch-ms and strictly increasing (PID attribution).
 //
-// PlaceLauncher.ashx параметры:
+// PlaceLauncher.ashx parameters:
 //   RequestGame:        browserTrackerId + placeId + isPlayTogetherGame=false
 //   RequestGameJob:     browserTrackerId + placeId + gameId + joinAttemptId
-//                       (форма веб-клиента; приём RM)
+//                       (web-client form; RM's approach)
 //   RequestPrivateGame: browserTrackerId + placeId + accessCode / linkCode
 //   RequestFollowUser:  userId
 class LaunchUri {
@@ -44,10 +44,10 @@ public:
                          const QString& launchToken,
                          qint64 browserTrackerId);
 
-    // Полный разбор ввода (id, URL игры, VIP-ссылка, share-ссылка, roblox://).
+    // Full parsing of the input (id, game URL, VIP link, share link, roblox://).
     static ParsedInput parseInput(const QString& input);
 
-    // Совместимость: placeId + код приватного сервера.
+    // Compatibility: placeId + private server code.
     static qint64 parsePlaceInput(const QString& input, QString* outPrivateCode = nullptr);
 };
 

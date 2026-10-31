@@ -8,8 +8,8 @@ class QPushButton;
 namespace ex::ui {
 namespace icons { class IconLabel; }
 
-// Поле ввода с ведущей SVG-иконкой и опциональной trailing-кнопкой.
-// Фокус/invalid отражаются на рамке через динамические свойства.
+// Input field with a leading SVG icon and an optional trailing button.
+// Focus/invalid states show on the outline through dynamic properties.
 class Field : public QFrame {
     Q_OBJECT
 public:

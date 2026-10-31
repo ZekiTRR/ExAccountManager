@@ -12,23 +12,23 @@ class QNetworkReply;
 
 namespace ex::ui {
 
-// Кэш аватаров-хедшотов (GET по avatarUrl — только презентация, бекенд
-// не трогается). Хранит круглые пиксмапы готовые к отрисовке; пока картинка
-// не пришла, отдаёт monogram по имени аккаунта.
+// Headshot avatar cache (GET on avatarUrl — presentation only, the backend
+// is left alone). Stores round pixmaps ready to paint; until the picture
+// has not arrived, it returns a monogram from the account name.
 class AvatarCache : public QObject {
     Q_OBJECT
 public:
     explicit AvatarCache(QObject* parent = nullptr);
 
-    // Круглая пиксмапа немедленно: кэш, идущий запрос или monogram.
-    // По завершении каждой загрузки — avatarReady (перерисовать вьюху).
+    // Round pixmap at once: cache, in-flight request, or monogram.
+    // Each finished download emits avatarReady (repaint the view).
     [[nodiscard]] QPixmap request(const QUrl& url, const QString& fallbackName);
 
-    // Кэш без побочных эффектов (для делегата при перерисовке).
+    // Cache without side effects (for the delegate while repainting).
     [[nodiscard]] QPixmap cachedOrMonogram(const QUrl& url,
                                            const QString& fallbackName) const;
 
-    // Monogram: тон-цвет детерминирован именем, буква имени.
+    // Monogram: tone colour derived from the name, letter taken from it.
     [[nodiscard]] static QPixmap monogram(const QString& name);
 
 signals:

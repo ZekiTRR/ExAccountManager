@@ -10,8 +10,8 @@ class QSpinBox;
 
 namespace ex::ui {
 
-// Размер окна Roblox и лимиты CPU/ОЗУ для выбранных или всех клиентов.
-// Действия применяются сразу; диалог остаётся открытым для следующей операции.
+// Roblox window size and CPU/RAM limits for selected or all clients.
+// Actions apply at once; the dialog stays open for the next operation.
 class ClientOptionsDialog : public QDialog {
 public:
     ClientOptionsDialog(const QList<qint64>& selectedPids,

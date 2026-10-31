@@ -542,7 +542,7 @@ void AnalyticsView::reload()
     }
     static_cast<TimeRowsWidget*>(m_timeRows)->setEntries(active);
 
-    // ---- активность по бакетам
+    // ---- activity per time bucket
     QStringList axis;
     QStringList points;
     QList<int> values;

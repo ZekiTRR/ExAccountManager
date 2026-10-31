@@ -18,10 +18,10 @@ enum class PresenceType {
 
 struct Presence {
     PresenceType type = PresenceType::Unknown;
-    qint64 userId = 0;      // для сопоставления ответа presence API
+    qint64 userId = 0;      // to match a presence API response
     qint64 placeId = 0;
     qint64 universeId = 0;
-    QString lastLocation;   // название игры/локации
+    QString lastLocation;   // game/place name
     QDateTime updated;
 
     static QString toString(PresenceType t)
@@ -36,20 +36,20 @@ struct Presence {
     }
 };
 
-// Модерация аккаунта (по мотивам RM: причина + срок).
+// Account moderation (based on RM: reason + expiry).
 struct ModerationInfo {
     bool moderated = false;
     QString reason;
-    QDateTime endTime;          // может быть пустой = навсегда
+    QDateTime endTime;          // may be empty = forever
     qint64 durationSeconds = 0; // 0 = unknown
 };
 
-// Здоровье аккаунта — вычисляется, не хранится (как в Astro).
+// Account health is computed, not stored (as in Astro).
 enum class AccountHealth {
     Ok = 0,
-    SessionExpired,     // cookie мёртв
-    NeedsReauth,        // не запускался давно / требует внимания
-    Moderated,          // бан
+    SessionExpired,     // cookie is dead
+    NeedsReauth,        // not launched for a long time / needs attention
+    Moderated,          // BAN
     Unknown,
 };
 
@@ -61,27 +61,27 @@ struct Account {
     QString alias;
     QString description;
     qint64 groupId = 0;
-    QString avatarUrl;          // headshot (кэшируется отдельно)
+    QString avatarUrl;          // headshot (cached separately)
     bool favorite = false;
     int sortOrder = 0;
     int priority = 0;           // 0..10 (Astro)
     QStringList tags;
-    QVariantHash fields;        // произвольные поля (RAM): Level, Gems, ...
+    QVariantHash fields;        // arbitrary fields (RAM): Level, Gems, ...
 
-    bool hasSession = false;    // в vault есть cookie (самого секрета тут нет)
-    bool cookieExpired = false; // последняя ревалидация провалилась
-    bool verified = false;      // верифицирован e-mail/аккаунт
+    bool hasSession = false;    // the vault holds a cookie (the secret itself is not here)
+    bool cookieExpired = false; // the last revalidation failed
+    bool verified = false;      // e-mail/account is verified
     ModerationInfo moderation;
     QDateTime lastUsed;
     QDateTime lastValidated;
 
-    // Сохранённое назначение запуска (RAM: SavedPlaceId/SavedJobId)
+    // Saved launch target (RAM: SavedPlaceId/SavedJobId)
     qint64 savedPlaceId = 0;
     QString savedJobId;
-    // Код приватного сервера (link code), если назначение — VIP
+    // Private server link code, when the target is VIP
     QString savedPrivateServerCode;
 
-    // Приватные сессионные данные (не хранятся в БД)
+    // Private session data (never stored in the DB)
     Presence presence;
 
     QString displayNameOrUsername() const { return displayName.isEmpty() ? username : displayName; }

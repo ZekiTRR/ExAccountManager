@@ -13,9 +13,9 @@ bool AppPaths::s_portable = false;
 void AppPaths::init()
 {
     if (!s_rootOverride.isEmpty())
-        return; // уже инициализировано (тест)
+        return; // already initialised (test)
 
-    // Портативный режим: маркер-файл "portable" рядом с exe
+    // Portable mode: a "portable" marker file next to the exe
     const QString exeDir = QCoreApplication::applicationDirPath();
     if (QFile::exists(exeDir + QStringLiteral("/portable")))
         s_portable = true;

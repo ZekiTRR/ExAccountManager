@@ -11,43 +11,45 @@
 
 namespace ex::roblox {
 
-// Сервис управления аккаунтами: добавление по cookie (с валидацией ДО
-// сохранения — принцип Astro), bulk-импорт, ревалидация, presence/аватары.
+// Account management service: add by cookie (validate BEFORE saving, the
+// Astro principle), bulk import, revalidation, presence and avatars.
 class AccountService : public QObject {
     Q_OBJECT
 public:
     AccountService(RobloxApi& api, ex::store::AccountStore& store, ex::store::Vault& vault,
                    QObject* parent = nullptr);
 
-    // Добавить аккаунт по cookie: валидация -> сохранение аккаунта -> cookie в vault.
+    // Add an account by cookie: validate -> save the account -> cookie into the vault.
     void addFromCookie(const QString& cookie,
                        std::function<void(bool ok, qint64 accountId, QString error)> cb);
 
-    // Добавить с УЖЕ ГОТОВЫМИ данными аккаунта (из fetch('/my/account/json')
-    // внутри страницы браузера — паттерн C# RAM AddAccount с AccountJSON).
-    // username — Roblox Name, displayName — DisplayName (могут различаться).
+    // Add with account data that is ALREADY known (from fetch('/my/account/json')
+    // inside the browser page, the C# RAM AddAccount AccountJSON pattern).
+    // username is the Roblox name, displayName is the display name (they may differ).
     void addAccountValidated(const QString& cookie, qint64 userId,
                              const QString& username, const QString& displayName,
                              const QString& password,
                              std::function<void(bool ok, qint64 accountId, QString error)> cb);
 
-    // Bulk: валидирует по одному (анти rate-limit, приём RM), сохраняет.
+    // Bulk import: validates one entry at a time (to avoid rate limits, the RM
+    // approach) and saves each entry.
     void importBulk(const QList<ex::roblox::BulkEntry>& entries,
                     std::function<void(int added, int failed)> cb);
 
-    // Ревалидация всех: cookie expired флаг + модерация.
+    // Revalidate every account: refresh the cookie_expired flag and moderation info.
     void revalidateAll(std::function<void()> cb);
 
-    // Обновить presence для списка аккаунтов (использует первый живой cookie).
+    // Refresh presence for the given accounts; an empty list means all accounts.
+    // Uses the first live cookie.
     void refreshPresence(const QList<qint64>& accountIds);
     model::Presence presenceFor(qint64 accountId) const;
 
-    // Обновить аватары (без авторизации, батчами). Пустой список = все.
+    // Refresh avatars (unauthenticated, in batches). An empty list means all accounts.
     void refreshAvatars(const QList<qint64>& userIds);
 
-    // Сохранить новый .ROBLOSECURITY, выданный сервером через Set-Cookie.
+    // Persist a new .ROBLOSECURITY issued by the server via Set-Cookie.
     void applyRotatedCookie(const QString& oldCookie, const QString& newCookie);
-    // Пометить сессию аккаунта недействительной (401 при запуске и т.п.).
+    // Mark the account session as invalid (e.g. a 401 during launch).
     void markSessionInvalid(qint64 accountId);
 
     bool vaultUnlocked() const { return m_vault.isUnlocked(); }
@@ -68,7 +70,7 @@ private:
     RobloxApi& m_api;
     ex::store::AccountStore& m_store;
     ex::store::Vault& m_vault;
-    QHash<qint64, model::Presence> m_presence; // сессионный кэш, в БД не пишется
+    QHash<qint64, model::Presence> m_presence; // session cache, never written to the DB
 };
 
 } // namespace ex::roblox

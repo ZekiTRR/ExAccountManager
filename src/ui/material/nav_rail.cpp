@@ -53,7 +53,7 @@ protected:
     }
 };
 
-// Пункт навигации рисует себя сам: глиф, подпись и pill активного состояния.
+// A nav item paints itself: glyph, caption, active-state pill.
 class NavButton : public QPushButton {
 public:
     explicit NavButton(const NavRail::Destination& dest, QWidget* parent = nullptr)

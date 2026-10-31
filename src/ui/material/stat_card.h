@@ -7,7 +7,7 @@ class QLabel;
 namespace ex::ui {
 namespace icons { class IconLabel; }
 
-// Компактная метрика аналитики: подпись, значение, контекст и иконка.
+// Compact analytics metric: caption, value, context, icon.
 class StatCard : public QFrame {
 public:
     explicit StatCard(const QString& iconName, const QString& label,

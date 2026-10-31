@@ -6,8 +6,8 @@ class QVariantAnimation;
 
 namespace ex::ui {
 
-// Switch в стиле Material 3: трек 52x32, бегунок с анимацией перелёта.
-// API как у QCheckBox: checked()/setChecked()/toggled(bool).
+// Material 3 switch: 52x32 track, thumb with a flight animation.
+// QCheckBox API: checked()/setChecked()/toggled(bool).
 class Switch : public QAbstractButton {
     Q_OBJECT
 public:
@@ -20,7 +20,7 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
-    qreal m_thumbPos = 0.0; // 0 = выкл (слева), 1 = вкл (справа)
+    qreal m_thumbPos = 0.0; // 0 = off (left), 1 = on (right)
     QVariantAnimation* m_thumbAnim = nullptr;
 };
 

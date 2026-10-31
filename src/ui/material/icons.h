@@ -10,34 +10,34 @@ class QPushButton;
 
 namespace ex::ui::icons {
 
-// Инициализация ресурсов иконок. Повторный вызов безопасен.
+// Initialise icon resources. Calling it again is safe.
 void init();
 
-// Иконка для кнопок: name — имя SVG в :/icons, px — логический размер.
+// Button icon: name is the SVG in :/icons, px the logical size.
 QIcon makeIcon(const QString& name, int px = 16);
 
-// Повесить иконку на кнопку. tone: auto / onAccent / accent / muted / error.
-// Иконка перекрашивается при смене темы через refreshAllWidgets().
+// Attach an icon to a button. tone: auto / onAccent / accent / muted / error.
+// The icon is retinted on a theme change via refreshAllWidgets().
 void setGlyph(QPushButton* button, const QString& name,
               const QString& tone = QStringLiteral("auto"));
 
-// Перерисовать иконки и метки после смены темы.
+// Repaint icons and labels after a theme change.
 void refreshAllWidgets();
 
-// Иконка приложения: градиентный squircle с монограммой Ex.
+// App icon: gradient squircle with the Ex monogram.
 QIcon appIcon();
 
-// Пиксмапа заданного цвета (кэшируется; учитывает devicePixelRatio).
+// Pixmap of a given colour (cached; honours devicePixelRatio).
 QPixmap pixmap(const QString& name, int px, const QColor& color, qreal dpr = 0.0);
 
-// Нарисовать иконку в прямоугольнике, сохраняя пропорции.
+// Draw the icon inside a rect, keeping its aspect ratio.
 void paint(QPainter* painter, const QString& name, const QRectF& rect,
            const QColor& color);
 
-// Семантический цвет тона из текущей палитры.
+// Semantic colour for a tone in the current palette.
 QColor toneColor(const QString& tone);
 
-// Лёгкая метка-иконка; цвет берётся из property("class") или setTone().
+// Light icon label; colour comes from property("class") or setTone().
 class IconLabel : public QWidget {
     Q_OBJECT
 public:

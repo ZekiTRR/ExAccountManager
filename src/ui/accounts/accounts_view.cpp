@@ -158,7 +158,7 @@ void AccountsView::buildUi()
     content->setContentsMargins(0, 0, 0, 0);
     content->setSpacing(16);
 
-    // ---------------- карточка списка
+    // ---------------- list card
     auto* listCard = controls::card(this);
     auto* listLayout = new QVBoxLayout(listCard);
     listLayout->setContentsMargins(6, 6, 6, 8);
@@ -302,7 +302,7 @@ void AccountsView::buildUi()
 
     content->addWidget(listCard, 1);
 
-    // ---------------- панель запуска
+    // ---------------- launch panel
     auto* panel = controls::card(this);
     panel->setFixedWidth(330);
     auto* launchLayout = new QVBoxLayout(panel);
@@ -1113,7 +1113,7 @@ void AccountsView::onItemClicked(QTreeWidgetItem* item, int)
         const int x = m_tree->viewport()->mapFromGlobal(QCursor::pos()).x();
         const QRect rect = m_tree->visualItemRect(item);
         if (x < rect.left() + 44)
-            return; // chevron уже обработан делегатом
+            return; // the chevron is already handled by the delegate
         toggleGroupSelection(item);
         return;
     }
@@ -1219,7 +1219,7 @@ void AccountsView::showAddDialog(int mode)
                       ok ? QStringLiteral("success") : QStringLiteral("error"));
             if (ok) {
                 reload();
-                // Аватар тянем сразу, не дожидаясь следующего запуска.
+                // Fetch the avatar right away instead of waiting for the next launch.
                 m_ctx.accounts().refreshAvatars({accountId});
             }
         });

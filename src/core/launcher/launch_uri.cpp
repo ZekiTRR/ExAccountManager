@@ -30,8 +30,8 @@ bool isPrivateServerUuid(const QString& code)
 
 QString LaunchUri::newLaunchToken()
 {
-    // epoch-ms, строго возрастающий: клиент получает launchtime в командной
-    // строке, по нему InstanceRegistry атрибутирует PID (приём RM).
+    // epoch-ms, strictly increasing: the client gets launchtime on the command
+    // command line; InstanceRegistry attributes the PID from it (RM's approach).
     static QMutex mutex;
     static qint64 last = 0;
     QMutexLocker lock(&mutex);
@@ -46,7 +46,7 @@ qint64 LaunchUri::newBrowserTrackerId()
     quint64 raw = 0;
     static_assert(sizeof raw == sizeof buf);
     std::memcpy(&raw, buf, sizeof raw);
-    return 100000000LL + static_cast<qint64>(raw % 899999999ULL); // ~9 цифр
+    return 100000000LL + static_cast<qint64>(raw % 899999999ULL); // ~9 digits
 }
 
 QString LaunchUri::build(const ex::model::LaunchTarget& target,
@@ -80,7 +80,7 @@ QString LaunchUri::build(const ex::model::LaunchTarget& target,
             "https://assetgame.roblox.com/game/PlaceLauncher.ashx"
             "?request=RequestPrivateGame&browserTrackerId=%1&placeId=%2")
             .arg(tracker, QString::number(target.placeId));
-        // UUID — это accessCode; короткий код — linkCode (форма Astro/RAM).
+        // A UUID is an accessCode; a short code is a linkCode (Astro/RAM form).
         launcherUrl += isPrivateServerUuid(target.privateServerCode)
             ? QStringLiteral("&accessCode=%1").arg(encode(target.privateServerCode))
             : QStringLiteral("&linkCode=%1").arg(encode(target.privateServerCode));
@@ -92,7 +92,7 @@ QString LaunchUri::build(const ex::model::LaunchTarget& target,
             .arg(tracker, QString::number(target.followUserId));
         break;
     case ex::model::LaunchTarget::Kind::ShareLink:
-        // Share-ссылки резолвятся до place/private на уровне сервиса.
+        // Share links resolve to place/private at the service level.
         return {};
     }
 
@@ -114,7 +114,7 @@ ParsedInput LaunchUri::parseInput(const QString& input)
     if (t.isEmpty())
         return out;
 
-    // Голое число — placeId.
+    // A bare number is a placeId.
     bool okNum = false;
     const qint64 num = t.toLongLong(&okNum);
     if (okNum && num > 0) {
@@ -133,8 +133,8 @@ ParsedInput LaunchUri::parseInput(const QString& input)
         return out;
     }
 
-    // URL игры / VIP-ссылка / share-ссылка. QUrlQuery корректно разбирает
-    // query и с якорем, и без него.
+    // Game URL / VIP link / share link. QUrlQuery parses it correctly
+    // query with and without the fragment.
     const QUrl url(t, QUrl::TolerantMode);
     if (url.isValid() && url.host().contains(QStringLiteral("roblox.com"), Qt::CaseInsensitive)) {
         const QUrlQuery q(url);
@@ -155,8 +155,8 @@ ParsedInput LaunchUri::parseInput(const QString& input)
             return out;
     }
 
-    // URL без схемы (www.roblox.com/...) — QUrl считает host только при схеме,
-    // поэтому fallback-регэкспы.
+    // URL without a scheme (www.roblox.com/...) — QUrl needs one to see a host,
+    // hence the fallback regexes.
     static const QRegularExpression vipRx{
         QStringLiteral(R"(roblox\.com/(?:games|share)/.*[?&]privateServerLinkCode=([A-Za-z0-9\-_]+))"),
         QRegularExpression::CaseInsensitiveOption};

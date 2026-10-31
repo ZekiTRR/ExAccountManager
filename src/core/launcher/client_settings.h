@@ -6,13 +6,13 @@
 namespace ex::launcher {
 
 // ClientAppSettings.json (<Roblox Versions>\<version-*>\ClientSettings).
-// FPS-лимит в приложении больше не используется; clearFpsCap() снимает ключ,
-// выставленный прошлыми версиями/вручную, чтобы клиент работал без капа.
+// The app no longer caps FPS; clearFpsCap() removes the flag
+// set by older versions or by hand, so the client runs uncapped.
 class ClientSettings {
 public:
     static bool clearFpsCap();
 
-    // Все папки version-*, где лежит RobloxPlayerBeta.exe.
+    // Every version-* folder that contains a RobloxPlayerBeta.exe.
     static QStringList versionDirs();
 
 private:

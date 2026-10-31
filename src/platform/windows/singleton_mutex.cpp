@@ -16,8 +16,8 @@ struct WaitCtx {
 DWORD WINAPI waitThreadProc(LPVOID lp)
 {
     auto* ctx = static_cast<WaitCtx*>(lp);
-    // Честная очередь: ждём мьютекс, пока Roblox его держит. Когда клиент
-    // выйдет — WaitForSingleObject вернёт управление и владение перейдёт к нам.
+    // Honest queue: wait for the mutex while Roblox holds it. Once the client
+    // releases it — WaitForSingleObject returns and ownership becomes ours.
     while (!*ctx->stop) {
         const DWORD r = WaitForSingleObject(ctx->mutex, 500);
         if (r == WAIT_OBJECT_0) {
@@ -27,7 +27,7 @@ DWORD WINAPI waitThreadProc(LPVOID lp)
             return 0;
         }
         if (r == WAIT_ABANDONED) {
-            // Roblox упал, не отпустив мьютекс — забираем "брошенный".
+            // Roblox crashed without releasing the mutex — take the abandoned one.
             *ctx->holding = true;
             EXLOG_INFO("mutex") << "singleton mutex adopted (abandoned)";
             delete ctx;
@@ -57,7 +57,7 @@ SingletonMutex::AcquireResult SingletonMutex::acquire()
     const DWORD err = GetLastError();
 
     if (err == ERROR_ALREADY_EXISTS) {
-        // Roblox уже запущен и держит мьютекс. Проверим, свободен ли он прямо сейчас.
+        // Roblox is already running and holds the mutex. Check whether it is free now.
         const DWORD r = WaitForSingleObject(mutex, 0);
         if (r == WAIT_OBJECT_0 || r == WAIT_ABANDONED) {
             m_mutex = mutex;
@@ -65,7 +65,7 @@ SingletonMutex::AcquireResult SingletonMutex::acquire()
             EXLOG_INFO("mutex") << "singleton mutex acquired immediately";
             return AcquireResult::Acquired;
         }
-        // Честно ждём в очереди (Roblox должен быть закрыт пользователем).
+        // Wait in the queue honestly (the user must close Roblox).
         m_mutex = mutex;
         auto* ctx = new WaitCtx{mutex, &m_holding, &m_stopWait};
         m_waitThread = CreateThread(nullptr, 0, waitThreadProc, ctx, 0, nullptr);

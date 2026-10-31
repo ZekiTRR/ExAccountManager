@@ -6,8 +6,8 @@
 namespace ex::store {
 
 namespace {
-// AAD связывает блоб с владельцем и типом секрета: блоб нельзя перенести
-// на другой аккаунт или выдать за другой тип секрета.
+// AAD binds a blob to its owner and secret type: it cannot be moved
+// onto another account or pass it off as another secret type.
 QByteArray aadFor(qint64 accountId, const char* kind)
 {
     return QByteArrayLiteral("exvault:") + QByteArray::number(accountId)

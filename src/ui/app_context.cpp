@@ -33,16 +33,16 @@ bool AppContext::init()
     m_store = std::make_unique<ex::store::AccountStore>(m_db);
     m_settings = std::make_unique<ex::store::Settings>(m_db);
 
-    // Сессии прошлого запуска не должны считаться фармом до бесконечности.
+    // Last run's sessions must not look like farming forever.
     if (!m_store->closeOpenSessions(QStringLiteral("orphaned")))
         EXLOG_WARN("app") << "cannot close orphaned sessions";
 
-    // FPS-лимит больше не поддерживается: снимаем ключ, выставленный
-    // прошлыми версиями/пользователем (клиент будет без капа).
+    // The FPS cap is no longer supported: clear the flag set
+    // by older versions or the user (the client ends up uncapped).
     if (!ex::launcher::ClientSettings::clearFpsCap())
         EXLOG_WARN("app") << "cannot clear legacy FPS cap";
 
-    // Дефолты настроек
+    // Settings defaults
     QVariantHash defaults;
     defaults.insert(QStringLiteral("general.language"), QStringLiteral("ru"));
     defaults.insert(QStringLiteral("general.theme"), QStringLiteral("dark"));
@@ -56,13 +56,13 @@ bool AppContext::init()
     m_settings->registerDefaults(defaults);
 
     if (!openOrCreateVault()) {
-        // Хранилище не разблокировано: приложение работает в read-only по секретам.
+        // Vault locked: the app runs read-only with respect to secrets.
         EXLOG_WARN("app") << "vault not unlocked:" << m_vaultError;
     } else {
         m_vault.setDataKey(m_dataKey);
     }
 
-    // Сервисы (создаются всегда: без vault просто не будет cookie)
+    // Services (always created: without a vault there simply are no cookies)
     m_api = std::make_unique<ex::roblox::RobloxApi>(this);
     m_registry = new ex::instances::InstanceRegistry(this);
     m_monitor = new ex::instances::InstanceMonitor(*m_registry, this);
@@ -71,15 +71,15 @@ bool AppContext::init()
     m_launchService = std::make_unique<ex::launcher::LaunchService>(
         *m_api, *m_store, m_vault, *m_registry, this);
 
-    // Реакция на изменения аккаунтов
+    // React to account changes
     connect(m_accountService.get(), &ex::roblox::AccountService::accountAdded,
             this, &AppContext::accountsChanged);
     connect(m_accountService.get(), &ex::roblox::AccountService::accountUpdated,
             this, &AppContext::accountsChanged);
     connect(m_api.get(), &ex::roblox::RobloxApi::cookieRotated, this,
             [this](const QString& oldCookie, const QString& newCookie) {
-        // Roblox (с 2026) ротирует .ROBLOSECURITY через Set-Cookie: без
-        // сохранения нового значения следующие запросы получат 401.
+        // Roblox (since 2026) rotates .ROBLOSECURITY through Set-Cookie: without
+        // saving the new value, later requests get 401.
         m_accountService->applyRotatedCookie(oldCookie, newCookie);
     });
     connect(m_launchService.get(), &ex::launcher::LaunchService::sessionInvalid, this,
@@ -101,7 +101,7 @@ bool AppContext::openOrCreateVault()
 {
     const QString vaultPath = ex::util::AppPaths::dataDir() + kVaultFile;
     if (!QFile::exists(vaultPath)) {
-        // Создаём device-mode vault (ключ в Credential Manager, пароль не нужен).
+        // Create a device-mode vault (key in Credential Manager, no password).
         if (!ex::crypto::VaultKey::create(vaultPath, QString(), kCredService)) {
             m_vaultError = QStringLiteral("vault-create-failed");
             return false;
@@ -111,9 +111,9 @@ bool AppContext::openOrCreateVault()
     QString err;
     if (ex::crypto::VaultKey::unlock(vaultPath, QString(), kCredService, m_dataKey, err)) {
         m_vaultError.clear();
-        // Миграция legacy (Credential Manager) -> DPAPI-файл: перезапаковываем
-        // заголовок тем же data-ключом, ключ теперь в <vault>.key. Cookie
-        // в БД не трогаются (дешёвый rekey, приём RM).
+        // Legacy migration (Credential Manager) -> DPAPI file: repacks
+        // header with the same data key; the key now lives in <vault>.key. Cookie
+        // in the DB are left alone (cheap rekey, RM's approach).
         const auto header = ex::crypto::VaultKey::readHeader(vaultPath);
         if (header.mode == ex::crypto::VaultKey::Mode::Device
             && !QFile::exists(ex::crypto::VaultKey::deviceKeyFilePath(vaultPath))) {
@@ -136,7 +136,7 @@ bool AppContext::openOrCreateVault()
         emit vaultLocked();
         return false;
     }
-    // Возможно, повреждён — попробуем .bak
+    // Possibly damaged — try the .bak
     const QString bak = vaultPath + QStringLiteral(".bak");
     if (QFile::exists(bak)) {
         QFile::remove(vaultPath);
@@ -148,9 +148,9 @@ bool AppContext::openOrCreateVault()
         }
     }
 
-    // Vault не открывается. Если НЕТ аккаунтов с сохранёнными сессиями —
-    // терять нечего: пересоздаём с нуля. Это лечит «corrupted» после сбоев
-    // на пустом хранилище.
+    // The vault will not open. If NO account has a saved session —
+    // nothing to lose: recreate from scratch. This heals "corrupted" after crashes
+    // on an empty vault.
     const bool hasAnySession = [this]() {
         for (const auto& a : m_store->accounts())
             if (a.hasSession)
@@ -223,7 +223,7 @@ bool AppContext::resetVault()
     m_vault.setDataKey(key);
     m_vaultError.clear();
 
-    // Ключ новый: старые блобы уже удалены, сессии помечаем истёкшими.
+    // New key: old blobs are already deleted, sessions are marked expired.
     for (auto account : m_store->accounts()) {
         account.hasSession = false;
         account.cookieExpired = true;

@@ -29,8 +29,8 @@ bool AccountService::saveCookie(qint64 accountId, const QString& cookie)
 void AccountService::addFromCookie(const QString& rawCookie,
                                    std::function<void(bool, qint64, QString)> cb)
 {
-    // Валидация ДО сохранения: идентифицируем аккаунт через API, только потом
-    // кладём cookie в vault (принцип Astro).
+    // Validate BEFORE saving: identify the account through the API and only
+    // then put the cookie into the vault (the Astro principle).
     const QString cookie = ex::util::redact::normalizeCookieValue(rawCookie);
     if (!ex::util::redact::looks_like_roblox_cookie(cookie)) {
         cb(false, 0, QStringLiteral("not-a-cookie"));
@@ -53,8 +53,8 @@ void AccountService::addFromCookie(const QString& rawCookie,
             v.effectiveCookie.isEmpty() ? cookie : v.effectiveCookie;
 
         auto saveAccount = [this, validation, cb](const QString& finalCookie) {
-            // Дедупликация как в RAM: сначала по UserId (username может
-            // меняться), затем по имени (для старых записей без user_id).
+            // Deduplicate the same way RAM does: by user ID first (usernames can
+            // change), then by username (for legacy rows without a user ID).
             auto existing = m_store.accountByUserId(validation.user.userId);
             if (!existing)
                 existing = m_store.accountByUsername(validation.user.username);
@@ -100,9 +100,9 @@ void AccountService::addFromCookie(const QString& rawCookie,
             cb(true, account.id, QString());
         };
 
-        // Web-валидация — единственный обязательный шаг (как в RAM/RM/Astro).
-        // Auth-ticket проверяется при запуске: ложный отказ preflight не должен
-        // блокировать добавление заведомо рабочей cookie.
+        // Web validation is the only mandatory step (as in RAM/RM/Astro).
+        // The auth ticket is checked at launch: a false preflight rejection must
+        // not block adding a cookie that is known to work.
         saveAccount(validatedCookie);
     });
 }
@@ -112,8 +112,8 @@ void AccountService::addAccountValidated(const QString& rawCookie, qint64 userId
                                          const QString& password,
                                          std::function<void(bool, qint64, QString)> cb)
 {
-    // Данные уже получены fetch('/my/account/json') из авторизованной страницы
-    // браузера — повторная HTTP-валидация не нужна (паттерн C# AddAccount).
+    // The data already came from fetch('/my/account/json') on an authenticated
+    // browser page, so no second HTTP validation is needed (the C# AddAccount pattern).
     const QString cookie = ex::util::redact::normalizeCookieValue(rawCookie);
     const QString name = username.trimmed().isEmpty() ? displayName.trimmed() : username.trimmed();
     const QString display = displayName.trimmed().isEmpty() ? name : displayName.trimmed();
@@ -177,8 +177,8 @@ void AccountService::addAccountValidated(const QString& rawCookie, qint64 userId
         cb(true, account.id, QString());
     };
 
-    // Данные уже подтверждены авторизованной страницей браузера; тикет
-    // проверяется только при запуске (см. комментарий в addFromCookie).
+    // The data has already been confirmed by the authenticated browser page;
+    // the ticket is only checked at launch (see the comment in addFromCookie).
     saveAccount(cookie);
 }
 
@@ -205,7 +205,7 @@ void AccountService::importNext(const QList<ex::roblox::BulkEntry>& entries, int
     emit importProgress(index + 1, entries.size());
 
     auto next = [this, entries, index, added, failed, cb](bool ok, qint64, const QString&) {
-        // Небольшая пауза между запросами — анти rate-limit (приём RM)
+        // Short pause between requests to stay under rate limits (the RM approach)
         QTimer::singleShot(700, this, [this, entries, index, added, failed, ok, cb]() {
             importNext(entries, index + 1, added + (ok ? 1 : 0), failed + (ok ? 0 : 1), cb);
         });
@@ -214,7 +214,7 @@ void AccountService::importNext(const QList<ex::roblox::BulkEntry>& entries, int
     if (!e.cookie.isEmpty()) {
         addFromCookie(e.cookie, next);
     } else if (!e.username.isEmpty() && !e.password.isEmpty()) {
-        // Вход по логину/паролю выполняется через CDP-диалог в UI.
+        // Username/password login is handled by the CDP dialog in the UI.
         next(false, 0, QStringLiteral("login-by-password-via-ui"));
     } else {
         next(false, 0, QStringLiteral("empty-entry"));
@@ -265,16 +265,16 @@ void AccountService::revalidateAll(std::function<void()> cb)
                              [this, acc, cookie, finishOne](const CookieValidation& v) mutable {
             auto a = acc;
             if (v.check == SessionCheck::InvalidSession) {
-                // Qt users-endpoint может дать ложный 401 для сессии, которая
-                // реально запускает игру (auth-ticket идёт через curl). Не
-                // помечаем cookie_expired: единственный достоверный признак —
-                // отказ auth-ticket при запуске.
+                // The Qt users endpoint may return a false 401 for a session that
+                // really starts the game (the auth ticket goes through curl). We do not
+                // mark cookie_expired from it: the only reliable signal is
+                // an auth-ticket failure during launch.
                 EXLOG_WARN("accounts") << "validation 401, keeping session state";
                 finishOne();
                 return;
             }
             if (v.check != SessionCheck::Ok) {
-                // Сеть/сервер — статус не трогаем, сессия могла быть живой.
+                // Network/server errors leave the status alone; the session may be alive.
                 finishOne();
                 return;
             }

@@ -28,7 +28,7 @@ void VaultDialog::buildUi()
     root->setContentsMargins(24, 22, 24, 20);
     root->setSpacing(12);
 
-    // Заголовок: глиф замка в тон-круге + название.
+    // Header: lock glyph in a tint circle + name.
     auto* header = new QHBoxLayout;
     header->setSpacing(12);
     auto* lockIcon = new icons::IconLabel(QStringLiteral("lock"), 26);

@@ -10,17 +10,17 @@ namespace ex::ui {
 
 class AppContext;
 
-// Разблокировка/восстановление хранилища секретов при старте.
-//  - password-required: запрос мастер-пароля;
-//  - повреждённый/потерянный device-ключ: предложение пересоздать хранилище
-//    (старые cookie нерасшифровываемы — это честно сказано в диалоге).
+// Unlock/repair the secret vault at start-up.
+//  - password-required: ask for the master password;
+//  - damaged/lost device key: offer to recreate the vault
+//    (old cookies cannot be decrypted — the dialog says so plainly).
 class VaultDialog : public QDialog {
     Q_OBJECT
 public:
     explicit VaultDialog(AppContext& ctx, QWidget* parent = nullptr);
 
-    // Показывает диалог, если vault не разблокирован.
-    // Возвращает true, если в итоге vault разблокирован.
+    // Shows the dialog when the vault is locked.
+    // Returns true once the vault ends up unlocked.
     static bool ensureUnlocked(AppContext& ctx, QWidget* parent);
 
 private:

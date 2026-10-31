@@ -18,8 +18,8 @@
 namespace ex::ui::icons {
 namespace {
 
-// Старые имена Material-глифов оставлены как алиасы: диалоги и контекстные
-// меню продолжают работать после перехода на собственный SVG-набор.
+// Old Material glyph names stay as aliases: dialogs and context menus
+// menus keep working after the move to our own SVG set.
 const QHash<QString, QString>& aliases()
 {
     static const QHash<QString, QString> map = {
@@ -150,7 +150,7 @@ void applyButtonIcon(QPushButton* button)
 
 void init()
 {
-    // SVG читается из qrc лениво; отдельная инициализация не нужна.
+    // SVGs load lazily from qrc; no separate init is needed.
 }
 
 QColor toneColor(const QString& tone)
@@ -253,7 +253,7 @@ void refreshAllWidgets()
 
 QIcon appIcon()
 {
-    // Фирменная иконка не зависит от темы.
+    // The brand icon ignores the theme.
     const QColor top(0x9A, 0x83, 0xFF);
     const QColor middle(0x6A, 0x51, 0xEF);
     const QColor bottom(0x35, 0xC8, 0xA5);

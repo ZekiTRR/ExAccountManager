@@ -19,7 +19,7 @@ bool isElevated()
 }
 
 namespace {
-// Командная строка в Windows-формате: program + экранированные аргументы.
+// Command line in Windows form: program + escaped arguments.
 QString buildCommandLine(const QString& exe, const QStringList& args)
 {
     QString cmd = QStringLiteral("\"%1\"").arg(exe);
@@ -39,7 +39,7 @@ QString buildCommandLine(const QString& exe, const QStringList& args)
 void* launchDeelevated(const QString& exePath, const QStringList& args,
                        const QString& workingDir)
 {
-    // 1) HWND рабочего стола (explorer) -> PID
+    // 1) Desktop HWND (explorer) -> PID
     const HWND shellWnd = GetShellWindow();
     if (!shellWnd) {
         EXLOG_WARN("elev") << "no shell window";
@@ -52,7 +52,7 @@ void* launchDeelevated(const QString& exePath, const QStringList& args,
         return nullptr;
     }
 
-    // 2) Токен explorer
+    // 2) Explorer token
     HANDLE shellProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, shellPid);
     if (!shellProc) {
         EXLOG_WARN("elev") << "cannot open shell process";
@@ -66,7 +66,7 @@ void* launchDeelevated(const QString& exePath, const QStringList& args,
     }
     CloseHandle(shellProc);
 
-    // 3) Дубликат primary-токена
+    // 3) Duplicate primary token
     HANDLE dupToken = nullptr;
     if (!DuplicateTokenEx(shellToken, TOKEN_ALL_ACCESS, nullptr, SecurityImpersonation,
                           TokenPrimary, &dupToken)) {
@@ -85,7 +85,7 @@ void* launchDeelevated(const QString& exePath, const QStringList& args,
         ? nullptr
         : reinterpret_cast<const wchar_t*>(workingDir.utf16());
 
-    // wchar-буфер команды (CreateProcessWithTokenW требует writable)
+    // wide command buffer (CreateProcessWithTokenW needs it writable)
     wchar_t* mutableCmd = _wcsdup(reinterpret_cast<const wchar_t*>(cmdLine.utf16()));
     const BOOL ok = CreateProcessWithTokenW(
         dupToken, LOGON_WITH_PROFILE, nullptr, mutableCmd,

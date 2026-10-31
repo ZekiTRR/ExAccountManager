@@ -55,7 +55,7 @@ void setConsoleEcho(bool on)
 namespace {
 void purgeOldLogs_locked()
 {
-    // rm.<YYYY-MM-DD>.log — удалить старее keepDays
+    // rm.<YYYY-MM-DD>.log — delete files older than keepDays
     const QString pattern = QStringLiteral("exmanager.*.log");
     const QStringList entries = QDir(g_state.logsDir).entryList({pattern}, QDir::Files, QDir::Name);
     const QDate threshold = QDate::currentDate().addDays(-g_state.keepDays);
@@ -75,18 +75,18 @@ void write(Level level, const QString& category, const QString& message)
 
     const QDateTime now = QDateTime::currentDateTime();
 
-    // Ежедневная ротация
+    // Daily rotation
     if (!g_state.fileDate.isValid() || g_state.fileDate != now.date()) {
         g_state.file.close();
         QDir().mkpath(g_state.logsDir);
         const QString name = QStringLiteral("exmanager.%1.log").arg(now.date().toString(QStringLiteral("yyyy-MM-dd")));
         g_state.file.setFileName(g_state.logsDir + QLatin1Char('/') + name);
-        (void)g_state.file.open(QIODevice::Append | QIODevice::Text); // при неудаче просто пишем в никуда — проверено выше
+        (void)g_state.file.open(QIODevice::Append | QIODevice::Text); // on failure we just write nowhere — already checked above
         g_state.fileDate = now.date();
         purgeOldLogs_locked();
     }
 
-    // Backstop-скраббинг: НИ ОДНО сообщение не попадает на диск без scrub()
+    // Backstop scrubbing: NO message reaches disk without scrub()
     const QString safe = ex::util::redact::scrub(message);
     static const char* kLevels[] = {"DEBUG", "INFO ", "WARN ", "ERROR"};
     const QString line = QStringLiteral("%1 [%2] [%3] %4\n")
@@ -96,7 +96,7 @@ void write(Level level, const QString& category, const QString& message)
 
     if (g_state.file.isOpen()) {
         g_state.file.write(line.toUtf8());
-        (void)g_state.file.flush(); // сброс на диск при каждой записи — секции лога не теряются при краше
+        (void)g_state.file.flush(); // flush on every write — log sections survive a crash
     }
     if (g_state.consoleEcho)
         QTextStream(stderr) << line;

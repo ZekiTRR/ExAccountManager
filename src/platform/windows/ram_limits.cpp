@@ -17,8 +17,8 @@ bool RamLimiter::trimWorkingSet(qint64 pid)
                            FALSE, static_cast<DWORD>(pid));
     if (!h)
         return false;
-    // EmptyWorkingSet вытесняет страницы, не сбрасывая жёсткий лимит
-    // (SetProcessWorkingSetSizeEx(-1,-1,0) удалил бы его).
+    // EmptyWorkingSet evicts pages without dropping the hard limit
+    // (SetProcessWorkingSetSizeEx(-1,-1,0) would remove it).
     const BOOL ok = EmptyWorkingSet(h);
     CloseHandle(h);
     if (!ok)
@@ -30,7 +30,7 @@ bool RamLimiter::queryMemory(qint64 pid, qint64& workingSetMb, qint64& privateMb
 {
     HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
     if (!h) {
-        // Фолбэк для систем, где LIMITED недостаточно для GetProcessMemoryInfo.
+        // Fallback for systems where LIMITED is not enough for GetProcessMemoryInfo.
         h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE,
                         static_cast<DWORD>(pid));
     }
@@ -52,7 +52,7 @@ bool RamLimiter::queryMemory(qint64 pid, qint64& workingSetMb, qint64& privateMb
 
 namespace {
 
-// CPU-job на процесс. Handle держим открытым: без него лимит не снять.
+// CPU job on the process. The handle stays open: without it the limit cannot be lifted.
 QHash<qint64, HANDLE> g_jobs;
 
 struct SoftCpuState {
@@ -104,8 +104,8 @@ bool clearWorkingSetLimit(qint64 pid)
         const DWORD err = GetLastError();
         return processGone(err);
     }
-    // Флаги MAX_DISABLE/MIN_DISABLE действительно снимают жёсткие пределы;
-    // (-1, -1, 0) только триммит и оставляет hard max в силе.
+    // The MAX_DISABLE/MIN_DISABLE flags really lift the hard limits;
+    // (-1, -1, 0) only trims and keeps the hard maximum in force.
     SetLastError(0);
     const BOOL ok = SetProcessWorkingSetSizeEx(
         proc, 1024 * 1024, 64 * 1024 * 1024,
@@ -164,7 +164,7 @@ bool restoreSoftCpu(qint64 pid)
         PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
         static_cast<DWORD>(pid));
     if (!proc)
-        return true; // процесс уже завершился — восстанавливать нечего
+        return true; // the process already exited — nothing to restore
 
     const bool priorityOk =
         SetPriorityClass(proc, previous.priority) != FALSE;
@@ -269,8 +269,8 @@ RamLimiter::LimitReport RamLimiter::applyLimits(qint64 pid, int cpuPercent,
     if (pid <= 0 || cpuPercent < 0 || cpuPercent > 100 || memoryMb < 0)
         return report;
 
-    // ОЗУ не зависит от Job Object: лимит рабочего набора работает даже
-    // внутри чужого job. 0 снимает прежний лимит.
+    // RAM does not depend on a Job Object: the working-set limit works even
+    // when it already lives inside a foreign job. 0 clears an earlier limit.
     report.memory = memoryMb > 0 ? setWorkingSetLimit(pid, memoryMb)
                                  : clearWorkingSetLimit(pid);
 

@@ -141,8 +141,8 @@ bool AccountStore::updateGroup(const model::Group& g)
 
 bool AccountStore::deleteGroup(qint64 id)
 {
-    // FK ON DELETE SET NULL есть в схеме, но не полагаемся на pragma:
-    // аккаунты должны остаться без группы.
+    // The FK ON DELETE SET NULL exists in the schema, but we do not rely on the pragma:
+    // accounts must end up without a group.
     {
         Stmt s(m_db.handle(), QStringLiteral("UPDATE accounts SET group_id=NULL WHERE group_id=?"));
         s.bind(1, id);
@@ -459,7 +459,7 @@ bool AccountStore::sessionEnd(qint64 ledgerId, const QString& reason)
 
 bool AccountStore::closeOpenSessions(const QString& reason)
 {
-    // ended_at = started_at: длительность 0, простой приложения не считается.
+    // ended_at = started_at: zero duration, app idle time is not counted.
     Stmt s(m_db.handle(), QStringLiteral(
         "UPDATE session_ledger SET ended_at=started_at, ended_reason=? WHERE ended_at IS NULL"));
     s.bind(1, reason);
@@ -495,8 +495,8 @@ QDateTime effectiveTo(const QDateTime& to)
 qint64 AccountStore::sessionSecondsFor(qint64 accountId, const QDateTime& from,
                                        const QDateTime& to) const
 {
-    // Пересечение [started_at, ended_at|now] с [from,to) в секундах.
-    // julianday() сравнивает числово — строковые T/Z-форматы не мешают.
+    // Overlap of [started_at, ended_at|now] with [from,to), in seconds.
+    // julianday() compares numerically — string T/Z formats do not interfere.
     const QString sql = QStringLiteral(
         "SELECT CAST(COALESCE(SUM("
         "  MAX(0.0, MIN(julianday(COALESCE(ended_at,'now')), julianday(?2))"

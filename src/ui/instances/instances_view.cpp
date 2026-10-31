@@ -284,7 +284,7 @@ public:
         actionsLayout->addWidget(m_kill);
         row->addWidget(actions);
 
-        // Клик по самой строке (не по кнопкам) выбирает окно.
+        // Clicking the row itself (not the buttons) selects the window.
         for (QLabel* label : findChildren<QLabel*>())
             label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
         m_avatar->setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -570,7 +570,7 @@ void InstancesView::buildUi()
     toolbar->addWidget(refreshBtn);
     tableLayout->addLayout(toolbar);
 
-    // ---- массовые действия: выбранные окна / все окна
+    // ---- bulk actions: selected windows / all windows
     auto* bulkBar = new QHBoxLayout;
     bulkBar->setContentsMargins(16, 0, 12, 7);
     bulkBar->setSpacing(2);
@@ -729,7 +729,7 @@ void InstancesView::reload()
     }
 
     if (!m_rowsBuilt || pids != m_order) {
-        // Порядок/состав изменились — пересобрать строки целиком.
+        // Order or contents changed — rebuild the strings completely.
         m_rows.clear();
         while (QLayoutItem* item = m_rowsLayout->takeAt(0)) {
             if (item->widget())

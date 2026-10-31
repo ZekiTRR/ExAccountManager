@@ -14,7 +14,7 @@ InstanceMonitor::InstanceMonitor(InstanceRegistry& registry, QObject* parent)
     : QObject(parent)
     , m_registry(registry)
 {
-    m_timer.setInterval(6000); // как Astro
+    m_timer.setInterval(6000); // like Astro
     connect(&m_timer, &QTimer::timeout, this, &InstanceMonitor::refresh);
 }
 
@@ -27,7 +27,7 @@ void InstanceMonitor::start()
 {
     m_timer.start();
     refresh();
-    // Второй замер через секунду — сразу получить дельту CPU (первый = 0).
+    // Second sample a second later gives a CPU delta at once (first one is 0).
     QTimer::singleShot(1200, this, &InstanceMonitor::refresh);
 }
 
@@ -43,16 +43,16 @@ void InstanceMonitor::refresh()
     const int before = m_registry.instances().size();
     m_registry.sweep(procs);
     if (m_registry.instances().size() > before) {
-        // Первый замер нового инстанса не имеет дельты CPU — добираем через сек.
+        // A new instance's first sample has no CPU delta — take another a second later.
         QTimer::singleShot(1200, this, &InstanceMonitor::refresh);
     }
 
-    // Телеметрия: CPU% как дельта (kernel+user) времени процесса, RAM — working set.
+    // Telemetry: CPU% as the process-time delta (kernel+user), RAM as working set.
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     const QList<ex::model::InstanceInfo> instances = m_registry.instances();
     for (const auto& snapshot : instances) {
         ex::model::InstanceInfo info = snapshot;
-        // Проверка валидности кэша (PID мог быть переиспользован)
+        // Cache validity check (a PID may have been reused)
         qint64 cachedCreate = m_lastCreateTime.value(info.pid, -1);
         if (cachedCreate != -1 && cachedCreate != info.processCreateTimeMs) {
             m_lastCpuTimes.remove(info.pid);
@@ -84,7 +84,7 @@ void InstanceMonitor::refresh()
             info.workingSetMb = ws;
             info.privateBytesMb = priv;
         }
-        // Раньше обновлялась локальная копия — в UI всегда были нули.
+        // It used to update a local copy, so the UI always showed zeros.
         m_registry.updateTelemetry(info.pid, info.cpuPercent, info.workingSetMb,
                                    info.privateBytesMb);
     }

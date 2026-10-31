@@ -15,18 +15,18 @@
 
 namespace ex::ui {
 
-// Контекст приложения: владеет всеми сервисами и связывает их.
+// App context: owns every service and wires them together.
 class AppContext : public QObject {
     Q_OBJECT
 public:
     explicit AppContext(QObject* parent = nullptr);
     ~AppContext() override;
 
-    bool init();          // true = готово к работе
-    bool vaultUnlocked(); // разблокировано ли хранилище секретов
+    bool init();          // true = ready to work
+    bool vaultUnlocked(); // whether the secret vault is unlocked
     bool vaultNeedsPassword() const { return m_vaultError == QLatin1String("password-required"); }
     void unlockWithPassword(const QString& password, bool& ok);
-    // Пересоздать vault (старые cookie нерасшифровываемы -> сессии сбрасываются).
+    // Recreate the vault (old cookies cannot be decrypted -> sessions reset).
     bool resetVault();
 
     ex::store::Database& db() { return m_db; }
@@ -41,7 +41,7 @@ public:
 
     QString vaultError() const { return m_vaultError; }
 
-    // Выбранные аккаунты (для массовых операций) — общий стейт UI.
+    // Selected accounts (bulk operations) — shared UI state.
     QList<qint64> selectedAccountIds() const { return m_selectedAccounts; }
     void setSelectedAccountIds(const QList<qint64>& ids) { m_selectedAccounts = ids; }
 

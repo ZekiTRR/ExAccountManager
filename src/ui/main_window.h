@@ -12,8 +12,8 @@ class AppContext;
 class NavRail;
 class SettingsView;
 
-// Главное окно: навигационный рейл + стек разделов, tray, DWM-заголовок.
-// Крестик завершает приложение.
+// Main window: nav rail + section stack, tray, DWM title bar.
+// The close button quits the application.
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:

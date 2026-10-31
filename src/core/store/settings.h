@@ -6,9 +6,9 @@
 
 namespace ex::store {
 
-// Настройки: key-value с типизированными дефолтами и рекурсивным merge.
-// Guard: ключи с секретными именами (cookie/password/token/secret/...)
-// отклоняются — секреты живут только в Vault (культура Astro).
+// Settings: key-value with typed defaults and recursive merge.
+// Guard: keys with secret names (cookie/password/token/secret/...)
+// are rejected — secrets live only in the vault (Astro culture).
 class Settings {
 public:
     explicit Settings(Database& db) : m_db(db) {}
@@ -16,16 +16,16 @@ public:
     QVariant get(const QString& key, const QVariant& def = {}) const;
     void set(const QString& key, const QVariant& value);
 
-    // Блок настроек "general.launch" -> hash всех "general.launch.*".
+    // Setting block "general.launch" -> hash of every "general.launch.*".
     QVariantHash section(const QString& prefix) const;
 
-    // Значения по умолчанию (регистрируются заранее; get вернёт их при отсутствии).
+    // Default values (registered up front; get returns them when unset).
     void registerDefaults(const QVariantHash& defaults);
 
-    // Небезопасное имя ключа (секрет) -> true. Сеттер с таким именем упадёт.
+    // Unsafe key name (secret) -> true. A setter with that name will throw.
     static bool isSensitiveKey(const QString& key);
 
-    // Снимок всех настроек (для отладки; секретных там нет по построению).
+    // Snapshot of every setting (debugging; structurally secret-free).
     QVariantHash all() const;
 
 private:

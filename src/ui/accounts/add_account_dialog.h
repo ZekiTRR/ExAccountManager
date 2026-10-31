@@ -12,8 +12,8 @@ namespace ex::ui {
 
 class Field;
 
-// Диалог добавления аккаунтов: cookie / массовый импорт / логин-пароль.
-// Чистая форма: сервисы вызывает AccountsView после exec().
+// Add-accounts dialog: cookie / bulk import / login-password.
+// Clean form: services are called by AccountsView after exec().
 class AddAccountDialog : public QDialog {
     Q_OBJECT
 public:

@@ -6,26 +6,26 @@
 
 namespace ex::platform {
 
-// Установленный клиент Roblox (папка Versions/version-*).
+// An installed Roblox client (Versions/version-* folder).
 struct RobloxInstallation {
     QString exePath;
     QString folderName;
     QDateTime modified;
 };
 
-// Все найденные RobloxPlayerBeta.exe в стандартных Versions-каталогах
-// (%LOCALAPPDATA%, Program Files, Program Files (x86)), новые сверху.
+// Every RobloxPlayerBeta.exe found in the standard Versions folders
+// (%LOCALAPPDATA%, Program Files, Program Files (x86)), newest first.
 QList<RobloxInstallation> robloxInstallations();
 
-// Что Windows запускает для roblox-player: ссылок (AssocQueryString).
-// Пустая строка — ассоциация не зарегистрирована.
+// What Windows launches for roblox-player: links (AssocQueryString).
+// An empty string means the association is not registered.
 QString registeredRobloxPlayer();
 
-// Разрешить выбранный путь: exe RobloxPlayerBeta.exe или папка (сама
-// установка / Versions). Пустая строка, если клиент не найден.
+// Resolve a chosen path: a RobloxPlayerBeta.exe or a folder (itself
+// install / Versions). Empty string when no client is found.
 QString resolveRobloxPlayerPath(const QString& configured);
 
-// RobloxPlayerBeta.exe прямо в папке, иначе самый свежий из version-*.
+// RobloxPlayerBeta.exe directly in the folder, else the newest version-*.
 QString findRobloxPlayerInFolder(const QString& folder);
 
 } // namespace ex::platform

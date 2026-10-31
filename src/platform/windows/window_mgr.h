@@ -7,46 +7,46 @@
 
 namespace ex::platform {
 
-// Управление окнами клиентов Roblox: позиция/размер [feature №2], скрытие
-// без кражи фокуса, авто-раскладка сеткой (RM), переименование заголовков.
+// Roblox client windows: position/size [feature #2], hiding
+// without stealing focus, grid auto-layout (RM), title renaming.
 class WindowMgr {
 public:
-    // Применить WindowProfile к главному окну процесса.
-    // state=Hidden использует ShowWindow(SW_HIDE) — окно скрыто, не свёрнуто.
+    // Apply a WindowProfile to the process's main window.
+    // state=Hidden uses ShowWindow(SW_HIDE) — hidden, not minimized.
     static bool applyProfile(qint64 pid, const ex::model::WindowProfile& profile);
 
-    // Показать/скрыть без кражи фокуса (SW_SHOW_NO_ACTIVATE / SW_HIDE).
+    // Show/hide without stealing focus (SW_SHOW_NO_ACTIVATE / SW_HIDE).
     static bool showNoActivate(qint64 pid);
     static bool hide(qint64 pid);
 
-    // Минимизация через PostMessage WM_SYSCOMMAND/SC_MINIMIZE —
-    // не активирует окно (приём RAM).
+    // Minimize via PostMessage WM_SYSCOMMAND/SC_MINIMIZE —
+    // does not activate the window (RAM's approach).
     static bool minimizeNoFocus(qint64 pid);
 
-    // Фокус на окно (с фолбеком AttachThreadInput как в RM).
+    // Focus a window (with the AttachThreadInput fallback RM uses).
     static bool focus(qint64 pid);
 
-    // Заголовок окна: чтение/установка (переименование в имя аккаунта).
+    // Window title: read/set (renamed to the account name).
     static QString title(qint64 pid);
     static bool setTitle(qint64 pid, const QString& title);
 
-    // Авто-раскладка окон списком PID в сетку по виртуальному рабочему столу
-    // (1 — весь экран, 2 — рядом, 3 — 2+1, 4 — 2x2, ...). Компенсация
-    // невидимых DWM-границ (приём RM).
+    // Auto-arrange the PID list into a grid over the virtual desktop
+    // (1 = whole screen, 2 = side by side, 3 = 2+1, 4 = 2x2, ...). Offsets
+    // invisible DWM borders (RM's approach).
     static bool arrangeGrid(const QList<qint64>& pids);
 
-    // Разложить окна сеткой с произвольным размером ячейки (например, 100×100).
-    // Окна идут слева направо и переносятся на следующую строку.
+    // Arrange windows in a grid with an arbitrary cell size (e.g. 100x100).
+    // Windows run left to right and wrap onto the next row.
     static bool arrangeGridSized(const QList<qint64>& pids, int width, int height,
                                  int gap = 8);
 
-    // Изменить размер окна, сохранив его текущую позицию.
+    // Resize a window while keeping its current position.
     static bool resizeWindow(qint64 pid, int width, int height);
 
-    // Текущий rect главного окна процесса.
+    // Current rect of the process's main window.
     static QRect windowRect(qint64 pid);
 
-    // Рабочая область основного монитора (без панели задач).
+    // Primary monitor work area (excluding the taskbar).
     static QRect primaryWorkArea();
 };
 

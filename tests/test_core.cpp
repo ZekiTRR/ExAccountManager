@@ -1,4 +1,4 @@
-// Базовые тесты core: redaction, bulk-парсер, URI builder, envelope crypto,
+// Core basics: redaction, bulk parser, URI builder, envelope crypto,
 // store CRUD. QtTest.
 #include <QtTest>
 
@@ -37,13 +37,13 @@ namespace {
 struct CookieFixture {
     const QString cookie = QStringLiteral("_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-cookie-will-compromise-your-account-DO-NOT-SHARE.|AABBCCDDEEFF00112233445566778899aabbccddeeff00112233445566778899AABBCCDDEEFF00112233445566778899aabbccddeeff00");
 
-    // Новый формат 2026: другой баннер, маркер GgIQAQ. и hex-токен.
+    // New 2026 format: different banner, GgIQAQ. marker and a hex token.
     const QString newBanner = QStringLiteral(
         "_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items.|_");
     const QString newCookie = newBanner + QStringLiteral("GgIQAQ.")
         + QStringLiteral("A1B2C3D4E5F6").repeated(10);
 
-    // Голый base64url-токен с символами, которые раньше обрезались.
+    // Bare base64url token with characters that used to be cut off.
     const QString bareToken = QStringLiteral("AbC+def/Ghi=")
         + QString(QLatin1Char('x')).repeated(100);
 };
@@ -69,39 +69,39 @@ private slots:
     }
     void extractCookie() {
         CookieFixture f;
-        // Полное значение: префикс WARNING — ЧАСТЬ cookie, не отрезается
+        // Full value: the WARNING prefix is PART of the cookie, never cut off
         const QString prefix = QStringLiteral("_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-cookie-will-compromise-your-account-DO-NOT-SHARE.|_");
         const QString token = QString(QLatin1Char('A')).repeated(220);
         const QString full = prefix + token;
         QCOMPARE(util::redact::normalizeCookieValue(full), full);
         QVERIFY(util::redact::looks_like_roblox_cookie(full));
 
-        // Голый токен остаётся как есть
+        // A bare token is kept as-is
         QCOMPARE(util::redact::normalizeCookieValue(token), token);
         QVERIFY(util::redact::looks_like_roblox_cookie(token));
 
-        // Кавычки/пробелы чистятся, значение сохраняется целиком
+        // Quotes/whitespace are stripped, the value is kept whole
         QCOMPARE(util::redact::normalizeCookieValue(
                      QStringLiteral("  \"%1\"  \n").arg(full)),
                  full);
 
-        // Новый формат: маркер GgIQAQ. и точка не должны обрезать значение
+        // New format: the GgIQAQ. marker and its dot must not cut the value
         QCOMPARE(util::redact::normalizeCookieValue(f.newCookie), f.newCookie);
         QVERIFY(util::redact::looks_like_roblox_cookie(f.newCookie));
 
-        // Скопированный Set-Cookie-заголовок
+        // A copied Set-Cookie header
         QCOMPARE(util::redact::normalizeCookieValue(
                      QStringLiteral("Set-Cookie: .ROBLOSECURITY=%1; Path=/; Secure; HttpOnly")
                          .arg(f.newCookie)),
                  f.newCookie);
 
-        // Cookie-заголовок с чужими cookie до/после
+        // Cookie header carrying foreign cookies before/after
         QCOMPARE(util::redact::normalizeCookieValue(
                      QStringLiteral("Cookie: foo=bar; .ROBLOSECURITY=%1; baz=qux")
                          .arg(f.newCookie)),
                  f.newCookie);
 
-        // Голый base64 с '+' '/' '=' сохраняется полностью
+        // Bare base64 with '+' '/' '=' is preserved completely
         QCOMPARE(util::redact::normalizeCookieValue(f.bareToken), f.bareToken);
         QVERIFY(util::redact::looks_like_roblox_cookie(f.bareToken));
     }
@@ -130,12 +130,12 @@ private slots:
         QCOMPARE(entries[4].password, QStringLiteral("pass4"));
         QCOMPARE(entries[4].cookie, f.newCookie);
         QCOMPARE(entries[5].cookie, f.newCookie);
-        // Заголовок не должен превращаться в аккаунт "Set-Cookie".
+        // A header line must not become an account called "Set-Cookie".
         QVERIFY(entries[5].username.isEmpty());
         QVERIFY(entries[5].password.isEmpty());
 
-        // user:pass:cookie с полным warning-значением (раньше вся строка
-        // ошибочно считалась cookie и теряла логин/пароль)
+        // user:pass:cookie holding a full warning value (previously the whole line
+        // was mistaken for a cookie and lost its login/password)
         const auto withCreds = roblox::BulkImportParser::parse(
             QStringLiteral("user5:pass5:%1").arg(f.newCookie));
         QCOMPARE(withCreds.size(), 1);
@@ -143,7 +143,7 @@ private slots:
         QCOMPARE(withCreds[0].password, QStringLiteral("pass5"));
         QCOMPARE(withCreds[0].cookie, f.newCookie);
 
-        // user::cookie — логин без пароля (формат Astro)
+        // user::cookie — login without a password (Astro format)
         const auto noPassword = roblox::BulkImportParser::parse(
             QStringLiteral("user6::%1").arg(f.newCookie));
         QCOMPARE(noPassword.size(), 1);
@@ -151,13 +151,13 @@ private slots:
         QVERIFY(noPassword[0].password.isEmpty());
         QCOMPARE(noPassword[0].cookie, f.newCookie);
 
-        // Cookie-заголовок отдельной строкой
+        // Cookie header on its own line
         const auto headerOnly = roblox::BulkImportParser::parse(
             QStringLiteral("Cookie: .ROBLOSECURITY=%1; Path=/").arg(f.newCookie));
         QCOMPARE(headerOnly.size(), 1);
         QCOMPARE(headerOnly[0].cookie, f.newCookie);
 
-        // Несколько user:pass через запятую (порт Astro)
+        // Several comma-separated user:pass pairs (Astro port)
         const auto commaList = roblox::BulkImportParser::parse(
             QStringLiteral("alpha:one,beta:two"));
         QCOMPARE(commaList.size(), 2);
@@ -173,11 +173,11 @@ private slots:
         const QString uri = launcher::LaunchUri::build(
             t, QStringLiteral("TICKET+WITH/SPECIAL="),
             QStringLiteral("111222333"), 123456789LL);
-        // Ticket percent-encoded: '+' иначе разрывает поля URI.
+        // The ticket is percent-encoded: otherwise '+' splits URI fields.
         QVERIFY(uri.startsWith(QLatin1String(
             "roblox-player:1+launchmode:play+gameinfo:TICKET%2BWITH%2FSPECIAL%3D")));
         QVERIFY(uri.contains(QLatin1String("launchtime:111222333")));
-        // placelauncherurl — цельный percent-encoded URL (форма RM/Astro).
+        // placelauncherurl is one percent-encoded URL (RM/Astro form).
         QVERIFY(uri.contains(QLatin1String(
             "placelauncherurl:https%3A%2F%2Fwww.roblox.com%2Fgame%2FPlaceLauncher.ashx%3F"
             "request%3DRequestGameJob%26browserTrackerId%3D123456789%26placeId%3D12345%26"
@@ -214,13 +214,13 @@ private slots:
             QStringLiteral("https://www.roblox.com/games/555/Game?privateServerLinkCode=abc123"), &code);
         QCOMPARE(code, QStringLiteral("abc123"));
 
-        // Share-ссылка: placeId нет, есть код приглашения.
+        // Share link: no placeId, only an invite code.
         const auto share = launcher::LaunchUri::parseInput(
             QStringLiteral("https://www.roblox.com/share?code=AbCd1234&type=Server"));
         QCOMPARE(share.placeId, qint64(0));
         QCOMPARE(share.shareCode, QStringLiteral("AbCd1234"));
 
-        // Реальные VIP-ссылки: share?code=... и games/...?privateServerLinkCode=...
+        // Real VIP links: share?code=... and games/...?privateServerLinkCode=...
         const auto shareReal = launcher::LaunchUri::parseInput(QStringLiteral(
             "https://www.roblox.com/share?code=3d0ad9cc027d5f498c127271ab55fb51&type=Server"));
         QCOMPARE(shareReal.placeId, qint64(0));
@@ -234,13 +234,13 @@ private slots:
         QCOMPARE(gamesVip.privateServerCode,
                  QStringLiteral("29617444843983806962063418628413"));
 
-        // roblox:// из веб-клиента
+        // roblox:// from the web client
         const auto deeplink = launcher::LaunchUri::parseInput(
             QStringLiteral("roblox://experiences/start?placeId=777&gameInstanceId=job-1"));
         QCOMPARE(deeplink.placeId, qint64(777));
         QCOMPARE(deeplink.jobId, QStringLiteral("job-1"));
 
-        // VIP-ссылка: и placeId, и код.
+        // VIP link: both placeId and code.
         const auto vip = launcher::LaunchUri::parseInput(
             QStringLiteral("https://www.roblox.com/games/555/Game?privateServerLinkCode=abc123"));
         QCOMPARE(vip.placeId, qint64(555));
@@ -252,7 +252,7 @@ private slots:
         const QString vaultPath = dir.path() + QStringLiteral("/vault.dat");
         const QString service = QStringLiteral("ExAccountManagerTest");
 
-        // Создание device-mode
+        // Device-mode creation
         QVERIFY(crypto::VaultKey::create(vaultPath, QString(), service));
 
         QByteArray key;
@@ -260,7 +260,7 @@ private slots:
         QVERIFY(crypto::VaultKey::unlock(vaultPath, QString(), service, key, err));
         QCOMPARE(key.size(), 32);
 
-        // seal/open секретов
+        // sealing/opening of secrets
         const QByteArray sealed = crypto::VaultKey::sealSecret(key, "aad-1", "supersecret-cookie");
         QVERIFY(sealed.size() > 12 + 16);
         bool ok = false;
@@ -268,19 +268,19 @@ private slots:
                  QByteArrayLiteral("supersecret-cookie"));
         QVERIFY(ok);
 
-        // AAD-перехлёст не должен расшифровываться
+        // An overlapping AAD must not decrypt
         bool ok2 = true;
         crypto::VaultKey::openSecret(key, "aad-2", sealed, &ok2);
         QVERIFY(!ok2);
 
-        // Rekey в парольный режим
+        // Rekey into password mode
         QVERIFY(crypto::VaultKey::rekey(vaultPath, key, QStringLiteral("pass123"), service));
         QByteArray key2;
         QString err2;
         QVERIFY(!crypto::VaultKey::unlock(vaultPath, QString(), service, key2, err2));
         QCOMPARE(err2, QStringLiteral("password-required"));
         QVERIFY(crypto::VaultKey::unlock(vaultPath, QStringLiteral("pass123"), service, key2, err2));
-        QCOMPARE(key2, key); // data key тот же — секреты в БД не тронуты
+        QCOMPARE(key2, key); // data key unchanged — secrets in the DB untouched
     }
 
     void storeCrud() {
@@ -313,14 +313,14 @@ private slots:
         QVERIFY(byUserId.has_value());
         QCOMPARE(byUserId->username, QStringLiteral("tester"));
 
-        // Переименование группы и удаление: аккаунт остаётся без группы.
+        // Group rename and delete: the account is left without a group.
         g.name = QStringLiteral("Farm2");
         QVERIFY(st.updateGroup(g));
         QVERIFY(st.deleteGroup(g.id));
         const auto ungrouped = st.accountById(a.id);
         QVERIFY(ungrouped.has_value());
         QCOMPARE(ungrouped->groupId, qint64(0));
-        a.groupId = 0; // модель в памяти тоже без удалённой группы
+        a.groupId = 0; // the in-memory model drops the deleted group too
 
         // Vault
         store::Vault vault(db);
@@ -328,7 +328,7 @@ private slots:
         QVERIFY(vault.setCookie(a.id, QStringLiteral("COOKIEVALUE123")));
         QCOMPARE(vault.cookie(a.id), QStringLiteral("COOKIEVALUE123"));
 
-        // Ложный cookie_expired снимается успешным запуском.
+        // A false cookie_expired is cleared by a successful launch.
         a.cookieExpired = true;
         QVERIFY(st.updateAccount(a));
         QVERIFY(st.markSessionValid(a.id));
@@ -344,14 +344,14 @@ private slots:
         settings.set(QStringLiteral("general.theme"), QStringLiteral("dark"));
         QCOMPARE(settings.get(QStringLiteral("general.theme")).toString(), QStringLiteral("dark"));
 
-        // Удаление аккаунта каскадно чистит секреты
+        // Deleting an account cascades to its secrets
         QVERIFY(st.deleteAccount(a.id));
         QVERIFY(vault.cookie(a.id).isEmpty());
     }
 
     void websocketFrames() {
         using ex::net::WebSocket;
-        // Серверный текстовый кадр без маски, короткий payload: 0x81 <len> data
+        // Unmasked server text frame, short payload: 0x81 <len> data
         QByteArray f1;
         f1.append(static_cast<char>(0x81));
         f1.append(static_cast<char>(5));
@@ -365,7 +365,7 @@ private slots:
         QCOMPARE(out.payload, QByteArrayLiteral("hello"));
         QCOMPARE(consumed, 7);
 
-        // 16-битная длина (126)
+        // 16-bit length (126)
         QByteArray longMsg(300, 'x');
         QByteArray f2;
         f2.append(static_cast<char>(0x81));
@@ -377,11 +377,11 @@ private slots:
         QCOMPARE(out.payload.size(), 300);
         QCOMPARE(consumed, 304);
 
-        // Недостаточно данных — ждём
+        // Not enough data — wait
         QVERIFY(!WebSocket::parseFrame(f2.left(10), out, consumed, err));
         QCOMPARE(err, QString());
 
-        // 64-битная длина (127)
+        // 64-bit length (127)
         QByteArray f3;
         f3.append(static_cast<char>(0x81));
         f3.append(static_cast<char>(127));
@@ -392,7 +392,7 @@ private slots:
         QVERIFY(WebSocket::parseFrame(f3, out, consumed, err));
         QCOMPARE(out.payload.size(), 100);
 
-        // Клиентский (маскированный) кадр
+        // Client (masked) frame
         QByteArray masked;
         masked.append(static_cast<char>(0x81));
         masked.append(static_cast<char>(0x80 | 4)); // mask + len
@@ -453,7 +453,7 @@ private slots:
         QTRY_COMPARE(cookieHeaders.size(), 2);
         QVERIFY(cookieHeaders.at(0).contains("FIRST"));
         QVERIFY(cookieHeaders.at(1).contains("SECOND"));
-        // jar не должен подмешивать cookie предыдущего аккаунта/ответа.
+        // jar must not mix in a cookie from the previous account/response.
         QVERIFY(!cookieHeaders.at(1).contains("FIRST"));
         QVERIFY(!cookieHeaders.at(1).contains("FROM_SERVER"));
     }
@@ -530,8 +530,8 @@ private slots:
         insertSession(QStringLiteral("2026-10-25T10:00:00Z"),
                       QStringLiteral("2026-10-25T10:01:40Z")); // 100 c
         insertSession(QStringLiteral("2026-10-25T09:59:00Z"),
-                      QStringLiteral("2026-10-25T10:01:00Z")); // 60 c после клипа
-        insertSession(QStringLiteral("2026-10-25T10:02:00Z"), QString()); // открыта
+                      QStringLiteral("2026-10-25T10:01:00Z")); // 60 s after the clipboard read
+        insertSession(QStringLiteral("2026-10-25T10:02:00Z"), QString()); // open
 
         const QDateTime from = QDateTime::fromString(
             QStringLiteral("2026-10-25T10:00:00Z"), Qt::ISODate);
@@ -540,11 +540,11 @@ private slots:
         QVERIFY(from.isValid());
         QVERIFY(to.isValid());
 
-        // 100 + 60 (обрезано from) + 60 (открытая обрезана to) = 220.
+        // 100 + 60 (clipped from) + 60 (open one clipped to) = 220.
         QCOMPARE(st.sessionSecondsFor(a.id, from, to), qint64(220));
         QCOMPARE(st.sessionCountFor(a.id, from, to), 3);
 
-        // Осиротевшие сессии закрываются нулевой длительностью.
+        // Orphaned sessions close with zero duration.
         QVERIFY(st.closeOpenSessions(QStringLiteral("test")));
         QCOMPARE(st.sessionSecondsFor(a.id, from, to), qint64(160));
     }
@@ -558,24 +558,24 @@ private slots:
         const qint64 pid = static_cast<qint64>(child.processId());
         QVERIFY(pid > 0);
 
-        // ОЗУ-лимит (working set) не зависит от Job Object и должен работать
-        // даже там, где назначение в job запрещено песочницей терминала.
+        // The RAM limit (working set) is Job-Object independent and should work
+        // even where the terminal sandbox forbids job assignment.
         const auto report = platform::RamLimiter::applyLimits(pid, 25, 2048);
         QVERIFY(report.memory);
         QVERIFY(report.cpuHard || report.cpuSoft);
         QVERIFY(platform::RamLimiter::clearLimits(pid));
-        QVERIFY(platform::RamLimiter::clearLimits(pid)); // повторное снятие безопасно
+        QVERIFY(platform::RamLimiter::clearLimits(pid)); // clearing it again is safe
 
         child.kill();
         QVERIFY(child.waitForFinished(3000));
     }
 
     void cdpBrowserDetect() {
-        // findBrowser на Windows почти всегда находит Edge
+        // findBrowser on Windows almost always returns Edge
         const QString b = ex::roblox::CdpLoginService::findBrowser();
         if (!b.isEmpty())
             QVERIFY(b.endsWith(QLatin1String("msedge.exe")) || b.endsWith(QLatin1String("chrome.exe")));
-        // candidates — непустой список стандартных путей
+        // candidates is a non-empty list of standard paths
         QVERIFY(!ex::roblox::CdpLoginService::browserCandidates().isEmpty());
     }
 };

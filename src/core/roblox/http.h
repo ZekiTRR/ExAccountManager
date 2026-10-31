@@ -12,10 +12,10 @@
 
 namespace ex::roblox {
 
-// Результат HTTP-запроса. Заголовки хранятся парами: Set-Cookie может
-// приходить несколько раз, и QMap-свёртка потеряла бы ротацию cookie.
+// HTTP result. Headers are stored as pairs: Set-Cookie can
+// arrive several times, and a QMap collapse would lose cookie rotation.
 struct HttpResponse {
-    bool networkOk = false;     // транспортный уровень (не HTTP-статус)
+    bool networkOk = false;     // transport level (not an HTTP status)
     int status = 0;
     QByteArray body;
     QList<QPair<QByteArray, QByteArray>> allHeaders;
@@ -38,8 +38,8 @@ struct HttpResponse {
     }
 };
 
-// Асинхронный HTTP-хелпер поверх QNetworkAccessManager.
-// Все колбэки вызываются в потоке объекта Http.
+// Async HTTP helper over QNetworkAccessManager.
+// Every callback runs on the Http object's thread.
 class Http : public QObject {
     Q_OBJECT
 public:

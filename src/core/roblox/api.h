@@ -10,14 +10,14 @@
 
 namespace ex::roblox {
 
-// Высокоуровневый клиент Roblox API.
-// Особенности (выжимка реалий API из трёх менеджеров):
-//  - валидация сессии — users.roblox.com/v1/users/authenticated (RM/Astro);
-//  - CSRF: POST c cookie сначала получает 403 + x-csrf-token, повторяем с ним.
-//    Токен кэшируется per-cookie (у каждого аккаунта свой);
-//  - Roblox может ротировать .ROBLOSECURITY через Set-Cookie (с 2026 г.);
-//    каждую ротацию нужно сохранять, иначе следующие запросы получат 401;
-//  - 429: Retry-After + jitter, до 3 попыток.
+// High-level Roblox API client.
+// API quirks distilled from three account managers:
+//  - session validation uses users.roblox.com/v1/users/authenticated (RM/Astro);
+//  - CSRF: a POST with a cookie first gets 403 + x-csrf-token, then retry with it.
+//    The token is cached per cookie (each account has its own);
+//  - Roblox may rotate .ROBLOSECURITY via Set-Cookie (since 2026);
+//    every rotation must be persisted, otherwise later requests get 401;
+//  - 429: Retry-After + jitter, up to 3 attempts.
 struct AuthedUser {
     qint64 userId = 0;
     QString username;
@@ -25,29 +25,29 @@ struct AuthedUser {
     bool hasPremium = false;
 };
 
-// Чем закончилась проверка cookie. Сетевую ошибку НЕЛЬЗЯ трактовать как
-// истёкшую сессию — иначе один offline-запрос помечает все аккаунты мёртвыми.
+// Outcome of a cookie check. A network error MUST NOT be treated as an
+// expired session, or a single offline request would mark every account dead.
 enum class SessionCheck {
     Ok,
-    InvalidSession, // 401/403 — cookie действительно отклонён
-    NetworkError,   // таймаут/DNS/offline
-    ServerError,    // 5xx/429 и прочие ответы сервера
-    Unexpected,     // 200, но тело не разобрано
+    InvalidSession, // 401/403 — the cookie really was rejected
+    NetworkError,   // timeout/DNS/offline
+    ServerError,    // 5xx/429 and other server responses
+    Unexpected,     // 200, but the body could not be parsed
 };
 
 struct CookieValidation {
     SessionCheck check = SessionCheck::Unexpected;
     AuthedUser user;
     QString error;
-    QString effectiveCookie; // cookie с учётом Set-Cookie-ротации
+    QString effectiveCookie; // cookie after any Set-Cookie rotation
 };
 
 struct ServerEntry {
     QString jobId;
     int playerCount = 0;
     int maxPlayers = 0;
-    QString machineAddress; // заполняется через join-game probe
-    double fps = 0;         // avgPing? нет — performanceStats если есть
+    QString machineAddress; // not set by publicServers(); belongs to a join-game probe
+    double fps = 0;         // taken from the "fps" field if the server includes it
     double ping = 0;
 };
 
@@ -60,8 +60,8 @@ struct GameDetails {
     QString iconUrl;
 };
 
-// Резолв share-ссылки (roblox.com/share?code=...) — порт Astro
-// read_private_server_invite: Roblox отдаёт privateServerInviteData.
+// Share-link resolution (roblox.com/share?code=...) ported from Astro's
+// read_private_server_invite: Roblox returns privateServerInviteData.
 struct ShareLinkInfo {
     qint64 placeId = 0;
     QString privateServerCode;
@@ -76,73 +76,73 @@ public:
 
     explicit RobloxApi(QObject* parent = nullptr);
 
-    // --- валидация cookie / информация о себе ---
+    // --- cookie validation / own account info ---
     void validateCookie(const QString& cookie,
                         std::function<void(const CookieValidation&)> cb);
 
-    // --- auth ticket (для запуска клиента) ---
-    // POST auth.roblox.com/v1/authentication-ticket; ticket в заголовке
-    // rbx-authentication-ticket (или в JSON-поле ticket). CSRF обрабатывается.
-    // effectiveCookie — cookie с учётом Set-Cookie-ротации в этом же запросе;
-    // его нужно сохранить, иначе следующий запрос может получить 401.
+    // --- auth ticket (for launching the client) ---
+    // POST auth.roblox.com/v1/authentication-ticket; the ticket comes back in the
+    // rbx-authentication-ticket header (or the JSON field ticket). CSRF is handled.
+    // effectiveCookie reflects any Set-Cookie rotation within this same request;
+    // it must be persisted, otherwise the next request may get 401.
     void generateAuthTicket(const QString& cookie, TicketCallback cb);
 
-    // --- presence (батч) ---
+    // --- presence (batch) ---
     void presence(const QString& anyCookie, const QList<qint64>& userIds,
                   std::function<void(bool ok, QList<model::Presence>)> cb);
 
-    // --- аватары (headshot, без авторизации) ---
+    // --- avatars (headshot, no authentication) ---
     void avatarHeadshots(const QList<qint64>& userIds,
                          std::function<void(bool ok, QMap<qint64, QString>)> cb);
 
-    // --- публичные серверы игры ---
+    // --- public game servers ---
     void publicServers(const QString& anyCookie, qint64 placeId,
                        std::function<void(bool ok, QList<ServerEntry>, QString cursor)> cb);
 
-    // --- детали игры ---
+    // --- game details ---
     void gameDetails(const QString& anyCookie, qint64 placeId,
                      std::function<void(bool ok, GameDetails)> cb);
 
-    // --- резолв share-ссылки (roblox.com/share?code=...) ---
+    // --- share-link resolution (roblox.com/share?code=...) ---
     void resolveShareLink(const QString& cookie, const QString& code,
                           std::function<void(bool ok, ShareLinkInfo, QString error)> cb);
 
-    // --- поиск пользователя по имени (для follow / добавления) ---
+    // --- username lookup (for follow / adding accounts) ---
     void usernameToUserId(const QString& anyCookie, const QString& username,
                           std::function<void(bool ok, qint64 userId)> cb);
 
-    // --- модерация аккаунта ---
+    // --- account moderation ---
     void moderationStatus(const QString& cookie, qint64 userId,
                           std::function<void(bool ok, model::ModerationInfo)> cb);
 
-    // Очистить кэш CSRF (например, после 401).
+    // Drop the cached CSRF token (e.g. after a 401).
     void clearCsrf(const QString& cookie);
 
-    // Низкоуровневый доступ (посторонние запросы).
+    // Low-level access for ad-hoc requests.
     Http& http() { return m_http; }
 
 signals:
-    // Сервер выдал новый .ROBLOSECURITY через Set-Cookie: его нужно сохранить.
+    // The server issued a new .ROBLOSECURITY via Set-Cookie; it must be persisted.
     void cookieRotated(const QString& oldCookie, const QString& newCookie);
 
 private:
-    // POST с автоматическим CSRF: 403+x-csrf-token -> retry. Второй аргумент
-    // колбэка — effective cookie с учётом Set-Cookie-ротации (в т.ч. в 403).
+    // POST with automatic CSRF: 403 + x-csrf-token -> retry. The callback's second
+    // argument is the effective cookie after Set-Cookie rotation (including in 403).
     void authedPost(const QString& cookie, const QNetworkRequest& req, const QByteArray& body,
                     std::function<void(HttpResponse, QString)> cb, int attempts = 3);
 
-    // Проверенный сетевой стек: curl.exe (Schannel) даёт auth-ticket там, где
-    // Qt-клиент получает 401 на retry (воспроизведено на живой сессии).
-    // Cookie передаётся через stdin конфигом curl, не через argv.
+    // Verified network stack: curl.exe (Schannel) yields an auth ticket where the
+    // Qt client gets 401 on retry (reproduced on a live session).
+    // The cookie is passed to curl through a stdin config, never through argv.
     void generateAuthTicketViaCurl(const QString& cookie, TicketCallback cb);
     void generateAuthTicketViaQt(const QString& cookie, TicketCallback cb);
 
-    // Проверка cookie через системный curl (Schannel), если Qt-стек получил
-    // отказ или сетевую ошибку. fallback возвращается, когда curl недоступен.
+    // Cookie validation through the system curl (Schannel) when the Qt stack got a
+    // rejection or a network error. fallback is returned when curl is unavailable.
     void validateCookieViaCurl(const QString& cookie, CookieValidation fallback,
                                std::function<void(const CookieValidation&)> cb);
 
-    // Разобрать Set-Cookie всех ответов; эмитит cookieRotated при изменении.
+    // Inspect Set-Cookie on responses; emits cookieRotated when the value changes.
     void observeSetCookie(const QString& oldCookie, const HttpResponse& res);
 
     Http m_http;

@@ -5,31 +5,31 @@
 
 namespace ex::util {
 
-// Скраббинг секретов в тексте перед логированием/отправкой.
-// Backstop-подход (как у RM): каждый лог-вызов проходит через scrub(),
-// поэтому секрет, случайно попавший в любое сообщение, будет замаскирован,
-// даже если точечные фильтры забыли.
+// Scrub secrets from text before logging or sending it.
+// Backstop approach (like RM): every log call goes through scrub(),
+// so a secret that slips into any message gets masked,
+// even when a spot filter was forgotten.
 namespace redact {
 
-// Маскирует известные формы секретов:
+// Masks the known secret shapes:
 //  - cookie .ROBLOSECURITY:  _|WARNING:-DO-NOT-SHARE-THIS.--Sharing...|<token>
-//  - присвоение cookie:      .ROBLOSECURITY=..., cookie=...
+//  - cookie assignment:      .ROBLOSECURITY=..., cookie=...
 //  - auth ticket:            rbx-authentication-ticket: <...>, gameinfo:<...>
 //  - csrf:                   x-csrf-token: <...>
-//  - bearer-токены:          Bearer <...>, Authorization: ...
-//  - путь пользователя:      C:\Users\<name>\ -> C:\Users\<redacted>\
-//  - emails (для диагностик): user@host -> <email>
+//  - bearer tokens:          Bearer <...>, Authorization: ...
+//  - user path:              C:\Users\<name>\ -> C:\Users\<redacted>\
+//  - emails (in diagnostics): user@host -> <email>
 QString scrub(const QString& text);
 
-// True, если строка похожа на cookie Roblox (для валидации ввода).
+// True when the string looks like a Roblox cookie (input validation).
 bool looks_like_roblox_cookie(const QString& text);
 
-// Нормализация ПОЛНОГО значения cookie. Префикс предупреждения
-// "_|WARNING:-DO-NOT-SHARE-THIS.--Sharing...|_TOKEN" — это ЧАСТЬ значения,
-// без него Roblox отвечает 401. Возвращает значение целиком:
-//   "_|WARNING:...|_TOKEN" -> как есть (целиком)
-//   голый длинный токен    -> как есть
-//   мусор/кавычки/пробелы  -> очищенная строка
+// Normalise the FULL cookie value. The warning prefix
+// "_|WARNING:-DO-NOT-SHARE-THIS.--Sharing...|_TOKEN" is PART of the value,
+// without it Roblox answers 401. Returns the whole value:
+//   "_|WARNING:...|_TOKEN" -> used as-is (whole value)
+//   bare long token           -> used as-is
+//   junk/quotes/whitespace     -> cleaned string
 QString normalizeCookieValue(const QString& text);
 
 } // namespace redact

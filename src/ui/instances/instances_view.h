@@ -18,8 +18,8 @@ namespace ex::ui {
 
 class AppContext;
 
-// Инстансы: live-метрики, таблица клиентов с действиями в строке и
-// массовыми действиями по выбранным/всем окнам.
+// Instances: live metrics, client table with row actions and
+// bulk actions over selected/all windows.
 class InstancesView : public QWidget {
     Q_OBJECT
 public:

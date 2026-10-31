@@ -32,8 +32,8 @@
 namespace ex::ui {
 namespace {
 
-// QComboBox рисует CSS-треугольник как чёрный квадрат; рисуем шеврон
-// иконкой темы вместо нативной стрелки.
+// QComboBox paints the CSS triangle as a black square; draw the chevron
+// theme icon instead of the native arrow.
 class ThemedComboBox : public QComboBox {
 public:
     using QComboBox::QComboBox;
@@ -356,7 +356,7 @@ void SettingsView::buildUi()
     contentLayout->setContentsMargins(0, 0, 6, 14);
     contentLayout->setSpacing(14);
 
-    // ---------------- Внешний вид
+    // ---------------- Appearance
     auto* appearance = sectionCard(
         tr("Внешний вид"), tr("Тема приложения и поведение при старте."),
         content);
@@ -379,7 +379,7 @@ void SettingsView::buildUi()
         m_startMinimized, appearance));
     contentLayout->addWidget(appearance);
 
-    // ---------------- Мониторинг
+    // ---------------- Monitoring
     auto* monitoring = sectionCard(
         tr("Мониторинг"), tr("Данные о клиентах и присутствии в Roblox."),
         content);
@@ -403,7 +403,7 @@ void SettingsView::buildUi()
     monitoringLayout->addSpacing(4);
     contentLayout->addWidget(monitoring);
 
-    // ---------------- Запуск
+    // ---------------- Launch
     auto* launch = sectionCard(
         tr("Запуск"), tr("Параметры пакетного запуска клиентов."), content);
     auto* launchLayout = static_cast<QVBoxLayout*>(launch->layout());

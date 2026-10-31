@@ -19,7 +19,7 @@
 #include <windows.h>
 #include <shellapi.h>
 
-// Диагностика хранилища секретов (без UI): --check-vault [пароль]
+// Secret vault diagnostics without UI: --check-vault [password]
 static int checkVault(const QString& password)
 {
     ex::util::AppPaths::init();
@@ -54,7 +54,7 @@ static int checkVault(const QString& password)
     std::printf("unlock: ok=%d err=%s dataKeySize=%lld\n", ok, qPrintable(err),
                 static_cast<long long>(dataKey.size()));
 
-    // Точка отказа напрямую ключом из cred manager
+    // Isolate the failure: unlock directly with the Credential Manager key
     if (!ok && credOk) {
         const bool ok2 = ex::crypto::VaultKey::unlockWithKey(vaultPath, credKey, dataKey, err);
         std::printf("unlockWithKey(cred-key): ok=%d err=%s\n", ok2, qPrintable(err));
@@ -64,22 +64,22 @@ static int checkVault(const QString& password)
 
 int main(int argc, char* argv[])
 {
-    // High-DPI (Qt6 включён по умолчанию, но явность не мешает)
+    // High-DPI (enabled by default in Qt 6; kept explicit for clarity)
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("ExAccountManager"));
     QApplication::setOrganizationName(QStringLiteral("ExAccountManager"));
     QApplication::setApplicationVersion(QStringLiteral(EX_VERSION_STRING));
 
-    // Внутренний de-elevated hand-off: запускается с токеном explorer и
-    // открывает URI от имени обычного пользователя (см. openUriDeElevated).
-    // Должно быть ДО single-instance mutex и инициализации контекста.
+    // Internal de-elevated hand-off: runs with the explorer token and opens the
+    // URI as a regular user (see openUriDeElevated).
+    // Must run BEFORE the single-instance mutex and context initialization.
     {
         const QStringList rawArgs = QCoreApplication::arguments();
         const int idx = rawArgs.indexOf(QStringLiteral("--open-uri"));
         if (idx >= 0 && idx + 1 < rawArgs.size()) {
             const QString uri = rawArgs.at(idx + 1);
-            // Только игровые URI: helper не должен быть универсальным
-            // de-elevated лаунчером.
+            // Game URIs only: the helper must not become a generic
+            // de-elevated launcher.
             if (!uri.startsWith(QStringLiteral("roblox-player:"), Qt::CaseInsensitive))
                 return 1;
             const HINSTANCE r = ShellExecuteW(
@@ -90,9 +90,10 @@ int main(int argc, char* argv[])
         }
     }
 
-    // De-elevated запуск выбранного клиента Roblox: helper получает путь к
-    // RobloxPlayerBeta.exe и готовый roblox-player URI. Только эти два вида
-    // аргументов, чтобы helper не стал универсальным лаунчером.
+    // De-elevated launch of the selected Roblox client: the helper receives
+    // the path to RobloxPlayerBeta.exe and a ready roblox-player URI. Only
+    // these two argument kinds are accepted so the helper cannot act as a
+    // generic launcher.
     {
         const QStringList rawArgs = QCoreApplication::arguments();
         const int idx = rawArgs.indexOf(QStringLiteral("--launch-player"));
@@ -129,7 +130,7 @@ int main(int argc, char* argv[])
     if (parser.isSet(QStringLiteral("console")))
         ex::log::setConsoleEcho(true);
 
-    // --- single-instance: named mutex
+    // --- single instance: named mutex
     static HANDLE single = CreateMutexW(nullptr, TRUE, L"ExAccountManager_SingleInstance");
     if (single && GetLastError() == ERROR_ALREADY_EXISTS) {
         QMessageBox::information(nullptr, QStringLiteral("ExAccountManager"),
@@ -137,7 +138,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    // --- контекст: БД, vault, сервисы
+    // --- context: database, vault, services
     ex::ui::AppContext ctx;
     if (!ctx.init()) {
         QMessageBox::critical(nullptr, QStringLiteral("ExAccountManager"),
@@ -145,18 +146,18 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // --- тема: шрифт иконок → QSS + QPalette
+    // --- theme: icon font -> QSS + QPalette
     ex::ui::icons::init();
     const QString themeName = ctx.settings().get(QStringLiteral("general.theme")).toString();
     ex::ui::theme::applyTheme(themeName);
     QApplication::setWindowIcon(ex::ui::icons::appIcon());
 
-    // --- хранилище секретов: пароль/восстановление до открытия главного окна
+    // --- secret vault: password/recovery before opening the main window
     ex::ui::VaultDialog::ensureUnlocked(ctx, nullptr);
 
     ex::ui::MainWindow w(ctx);
     if (ctx.settings().get(QStringLiteral("general.startMinimized")).toBool())
-        w.hide(); // стартуем в трей
+        w.hide(); // start in the tray
     else
         w.show();
 

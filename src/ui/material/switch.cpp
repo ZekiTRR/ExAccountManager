@@ -22,7 +22,7 @@ Switch::Switch(QWidget* parent)
     setCursor(Qt::PointingHandCursor);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    // Пружина M3: быстрый перелёт бегунка при переключении.
+    // M3 spring: the thumb springs over quickly on toggle.
     m_thumbAnim = new QVariantAnimation(this);
     m_thumbAnim->setDuration(150);
     m_thumbAnim->setEasingCurve(QEasingCurve::OutCubic);

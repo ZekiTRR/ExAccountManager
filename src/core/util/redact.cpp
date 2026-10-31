@@ -7,47 +7,47 @@ namespace ex::util::redact {
 
 namespace {
 
-// .ROBLOSECURITY cookie: "_|WARNING:...|<token>". С 2026 Roblox выдаёт разные
-// варианты баннера и токены, содержащие ".", "+", "/", "=" — поэтому токен
-// описывается как «всё до пробела/кавычки», а не узким классом символов.
+// .ROBLOSECURITY cookie: "_|WARNING:...|<token>". Since 2026 Roblox hands out different
+// banner variants and tokens holding ".", "+", "/", "=" — so the token
+// is described as "everything up to a space/quote", not a narrow character class.
 const QRegularExpression kCookiePattern{
     QStringLiteral(R"(_\|WARNING:[^|\r\n]*\|[^\s"'<>]{16,})"),
     QRegularExpression::CaseInsensitiveOption};
 
-// Присвоения вида ".ROBLOSECURITY=<token>" (в Cookie-/Set-Cookie-заголовке).
+// Assignments like ".ROBLOSECURITY=<token>" inside a Cookie-/Set-Cookie header.
 const QRegularExpression kCookieAssign{
     QStringLiteral(R"((\.ROBLOSECURITY\s*[=:]\s*"?)([^\s;"'<>]+))"),
     QRegularExpression::CaseInsensitiveOption};
 
-// Auth ticket в заголовке или в URI (gameinfo:)
+// Auth ticket in a header or in a URI (gameinfo:)
 const QRegularExpression kTicket{
     QStringLiteral(R"((rbx-authentication-ticket|gameinfo|authorization|bearer)\s*[=:]\s*[][(){}<>"' A-Za-z0-9_%+.\-]{20,})"),
     QRegularExpression::CaseInsensitiveOption};
 
-// CSRF-токен
+// CSRF token
 const QRegularExpression kCsrf{
     QStringLiteral(R"((x-csrf-token)\s*[=:]\s*[][(){}<>"' A-Za-z0-9_%+.\-]{16,})"),
     QRegularExpression::CaseInsensitiveOption};
 
-// Путь пользователя Windows: C:\Users\<name>\...
+// Windows user path: C:\Users\<name>\...
 const QRegularExpression kUserPath{
     QStringLiteral(R"((?:[A-Za-z]:\\Users\\)[^\\/:*?\"<>|\s]+)"),
     QRegularExpression::CaseInsensitiveOption};
 
-// Email — считается персоналией, маскируется в диагностике
+// E-mail — personal data, so it is masked in diagnostics
 const QRegularExpression kEmail{
     QStringLiteral(R"(\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b)")};
 
-// Длинные hex/base64-подобные строки (секреты общего вида, >= 32 симв.)
+// Long hex/base64-looking strings (generic secrets, >= 32 chars)
 const QRegularExpression kLongSecret{
     QStringLiteral(R"(\b[A-Fa-f0-9]{64,}\b|\b[A-Za-z0-9+/]{64}={0,2}\b)")};
 
-// Метка Cookie:/Set-Cookie: в начале вставленной строки.
+// The Cookie:/Set-Cookie: label at the start of a pasted line.
 const QRegularExpression kHeaderLabel{
     QStringLiteral(R"(^\s*(?:set-)?cookie\s*:\s*)"),
     QRegularExpression::CaseInsensitiveOption};
 
-// Присвоение имени cookie внутри заголовка (может быть не первым).
+// Cookie-name assignment inside a header (it may not come first).
 const QRegularExpression kCookieAssignment{
     QStringLiteral(R"((?:^|[;\s])\.?ROBLOSECURITY\s*=\s*)"),
     QRegularExpression::CaseInsensitiveOption};
@@ -62,7 +62,7 @@ QString scrub(const QString& text)
     if (text.isEmpty())
         return text;
     QString out = text;
-    // Порядок важен: сначала самые специфичные формы
+    // Order matters: the most specific shapes first
     out.replace(kCookiePattern, QStringLiteral("<roblox-cookie>"));
     out.replace(kCookieAssign, QStringLiteral("\\1<redacted>"));
     out.replace(kCsrf, QStringLiteral("\\1=<redacted>"));
@@ -90,8 +90,8 @@ bool looks_like_roblox_cookie(const QString& text)
 QString normalizeCookieValue(const QString& text)
 {
     const auto stripQuotes = [](QString value) {
-        // Кавычки вокруг значения не являются его частью. Внутренние символы
-        // ('.', '+', '/', '=' и т.п.) не трогаем.
+        // Quotes around the value are not part of it; inner characters
+        // ('.', '+', '/', '=' and the like) are left alone.
         while (value.size() >= 2) {
             const QChar first = value.front();
             const QChar last = value.back();
@@ -109,11 +109,11 @@ QString normalizeCookieValue(const QString& text)
     if (s.isEmpty())
         return {};
 
-    // Вставлен целый заголовок: "Cookie: ..." / "Set-Cookie: ..."
+    // A whole header was pasted: "Cookie: ..." / "Set-Cookie: ..."
     s.remove(kHeaderLabel);
     s = stripQuotes(s.trimmed());
 
-    // "name=.ROBLOSECURITY; .ROBLOSECURITY=<value>; Path=/; ..." -> только значение.
+    // "name=.ROBLOSECURITY; .ROBLOSECURITY=<value>; Path=/; ..." -> value only.
     const auto assign = kCookieAssignment.match(s);
     if (assign.hasMatch()) {
         s = s.mid(assign.capturedEnd()).trimmed();
@@ -122,14 +122,14 @@ QString normalizeCookieValue(const QString& text)
             s = s.left(semi).trimmed();
         s = stripQuotes(s);
     } else {
-        // Голое значение: ';' может появиться только от скопированных атрибутов.
+        // Bare value: ';' can only come from copied attributes.
         const int semi = s.indexOf(QLatin1Char(';'));
         if (semi >= 0)
             s = s.left(semi).trimmed();
     }
 
-    // Если перед самодокументируемым баннером оказался мусор (например,
-    // "user:pass:"), оставляем значение начиная с баннера.
+    // If junk precedes the self-documenting banner (for instance
+    // "user:pass:"), we keep the value starting at the banner.
     const int banner = s.indexOf(QStringLiteral("_|WARNING:"), 0, Qt::CaseInsensitive);
     if (banner > 0)
         s = stripQuotes(s.mid(banner).trimmed());

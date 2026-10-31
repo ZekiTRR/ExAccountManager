@@ -5,22 +5,22 @@
 
 namespace ex::util::fs {
 
-// Атомарная запись файла: tmp + flush + fsync + rename (поверх старого).
-// Возвращает false и пишет в лог при ошибке. Класс «порванный файл» устранён
-// структурно — читатель либо видит старое содержимое, либо новое.
+// Atomic file write: tmp + flush + fsync + rename (over the old one).
+// Returns false and logs on error. The "torn file" class is removed
+// structurally — a reader sees either the old or the new content.
 bool writeAtomic(const QString& path, const QByteArray& data);
 
 QByteArray readFile(const QString& path);
 QString readTextFile(const QString& path);
 
-// SHA-256 файла (пустая строка при ошибке).
+// SHA-256 of a file (empty string on error).
 QString sha256File(const QString& path);
 QString sha256Hex(const QByteArray& data);
 
-// Бэкап: копирует path -> backups/<name>.<timestamp>.bak, чистит старее keep.
+// Backup: copies path -> backups/<name>.<timestamp>.bak, prunes older than keep.
 bool backupFile(const QString& path, const QString& backupsDir, int keep = 10);
 
-// Восстановление из последнего бэкапа (при повреждении основного файла).
+// Restore from the newest backup (when the main file is damaged).
 bool restoreLatestBackup(const QString& path, const QString& backupsDir);
 
 bool ensureDir(const QString& dir);

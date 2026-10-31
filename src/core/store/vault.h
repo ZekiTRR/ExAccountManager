@@ -7,8 +7,8 @@
 
 namespace ex::store {
 
-// Секреты аккаунтов (cookie, пароли) — AES-256-GCM под data key из vault.dat.
-// Ключи шифрования не хранятся в БД; без разблокированного vault — мёртвые блобы.
+// Account secrets (cookies, passwords) — AES-256-GCM under the vault.dat key.
+// Encryption keys never sit in the DB; without an unlocked vault blobs are dead.
 class Vault {
 public:
     Vault(Database& db) : m_db(db) {}
@@ -23,7 +23,7 @@ public:
     QString password(qint64 accountId) const;
 
     bool clearAccount(qint64 accountId);
-    // Удалить все зашифрованные секреты (после пересоздания vault они мертвы).
+    // Delete all encrypted secrets (after a vault recreate they are dead).
     bool clearAll();
 
 private:

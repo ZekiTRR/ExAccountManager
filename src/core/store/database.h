@@ -9,8 +9,8 @@ struct sqlite3_stmt;
 
 namespace ex::store {
 
-// RAII-обёртка над sqlite3*. WAL, busy_timeout, foreign_keys.
-// Все таблицы создаются миграциями (schema_version в PRAGMA user_version).
+// RAII wrapper over sqlite3*. WAL, busy_timeout, foreign_keys.
+// Migrations create every table (schema version in PRAGMA user_version).
 class Database {
 public:
     Database() = default;
@@ -26,8 +26,8 @@ public:
 
     bool exec(const QString& sql, QString* err = nullptr);
 
-    // Простой скалярный запрос (SELECT count(*) FROM t WHERE ...).
-    // Возвращает первое значение первого ряда.
+    // Simple scalar query (SELECT count(*) FROM t WHERE ...).
+    // Returns the first value of the first row.
     QVariant scalar(const QString& sql);
 
     int userVersion() const;
@@ -40,7 +40,7 @@ private:
     sqlite3* m_db = nullptr;
 };
 
-// RAII-обёртка над prepared statement.
+// RAII wrapper over a prepared statement.
 class Stmt {
 public:
     Stmt(sqlite3* db, const QString& sql);
@@ -58,8 +58,8 @@ public:
     void bind(int idx, const QByteArray& v);
     void bindNull(int idx);
 
-    bool step();          // true если есть строка
-    bool exec();          // для INSERT/UPDATE/DELETE
+    bool step();          // true when the string is present
+    bool exec();          // for INSERT/UPDATE/DELETE
     QString colText(int idx) const;
     qint64 colInt(int idx) const;
     bool colBool(int idx) const;

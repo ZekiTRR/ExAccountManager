@@ -15,7 +15,7 @@ QByteArray protect(const QByteArray& plain, bool* ok)
     in.pbData = reinterpret_cast<BYTE*>(const_cast<char*>(plain.constData()));
     in.cbData = static_cast<DWORD>(plain.size());
     DATA_BLOB out{};
-    // CRYPTPROTECT_UI_FORBIDDEN — без UI-промптов (принцип Astro)
+    // CRYPTPROTECT_UI_FORBIDDEN — no UI prompts (Astro principle)
     if (!CryptProtectData(&in, L"ExAccountManager", nullptr, nullptr, nullptr,
                           CRYPTPROTECT_UI_FORBIDDEN, &out)) {
         if (ok) *ok = false;

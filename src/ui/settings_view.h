@@ -14,7 +14,7 @@ class Stepper;
 class Switch;
 class ThemeOption;
 
-// Настройки: внешний вид, мониторинг, параметры запуска.
+// Settings: appearance, monitoring, launch options.
 class SettingsView : public QWidget {
     Q_OBJECT
 public:

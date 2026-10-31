@@ -52,7 +52,7 @@ bool clearRobloxCookieFile()
 
 qint64 fileTimeToMs(const FILETIME& ft)
 {
-    // 116444736000000000 = смещение от 1601-01-01 к unix epoch (100ns)
+    // 116444736000000000 = offset from 1601-01-01 to the unix epoch (100ns)
     const ULARGE_INTEGER u{{ft.dwLowDateTime, ft.dwHighDateTime}};
     return static_cast<qint64>((u.QuadPart - 116444736000000000ULL) / 10000ULL);
 }
@@ -92,18 +92,18 @@ QList<ProcessInfo> processesByName(const QString& nameLower)
 
 namespace {
 
-// Публичный winternl.h не раскрывает нужные поля PEB/ProcessParameters —
-// определяем собственные макеты (x64) со static_assert-ами (приём RM).
+// The public winternl.h hides the PEB/ProcessParameters fields we need —
+// we define our own x64 layouts with static_asserts (RM's approach).
 struct UstrX {
-    unsigned short Length;        // в байтах
+    unsigned short Length;        // in bytes
     unsigned short MaximumLength;
     unsigned int _pad;
     const void* Buffer;
 };
 
-// offsetof(RTL_USER_PROCESS_PARAMETERS, CommandLine) на x64 = 112
+// offsetof(RTL_USER_PROCESS_PARAMETERS, CommandLine) on x64 = 112
 constexpr size_t kCmdLineOffset = 112;
-// offsetof(PEB, ProcessParameters) на x64 = 32
+// offsetof(PEB, ProcessParameters) on x64 = 32
 constexpr size_t kPebParamsOffset = 32;
 
 using NtQIPFn = LONG (WINAPI*)(HANDLE, LONG, PVOID, ULONG, PULONG);
@@ -122,7 +122,7 @@ struct ReadCtx {
 
 QString processCommandLine(qint64 pid)
 {
-    // Путь из RM: OpenProcess(VM_READ|QUERY_INFORMATION) ->
+    // RM's path: OpenProcess(VM_READ|QUERY_INFORMATION) ->
     // NtQueryInformationProcess(ProcessBasicInformation) -> PEB ->
     // ProcessParameters -> CommandLine (UNICODE_STRING).
     HANDLE h = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE,
@@ -145,13 +145,13 @@ QString processCommandLine(qint64 pid)
 
         ReadCtx rd{h};
 
-        // PEB: читаем окно вокруг ProcessParameters (32..39)
+        // PEB: read the window around ProcessParameters (32..39)
         quintptr params = 0;
         if (!rd.read(reinterpret_cast<size_t>(pbi.PebBaseAddress) + kPebParamsOffset,
                      &params, sizeof params) || !params)
             break;
 
-        // UNICODE_STRING CommandLine по смещению 112
+        // UNICODE_STRING CommandLine at offset 112
         UstrX us{};
         if (!rd.read(params + kCmdLineOffset, &us, sizeof us) || us.Length == 0 || !us.Buffer)
             break;
@@ -173,15 +173,15 @@ QString processCommandLine(qint64 pid)
 bool killVerified(qint64 pid, const QString& expectedImageLower,
                   const QString& expectedTokenInCmdline)
 {
-    // Тройная проверка через ОДИН handle (приём RM):
-    //   1) имя образа == ожидаемому;
-    //   2) (если задан токен) командная строка содержит launchtime-токен;
-    //   3) PID живой на момент TerminateProcess — тот же handle.
+    // Triple check through ONE handle (RM's approach):
+    //   1) image name == the expected one;
+    //   2) if a token was given, the command line contains the launchtime token;
+    //   3) the PID is still alive at TerminateProcess time — same handle.
     HANDLE h = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ,
                            FALSE, static_cast<DWORD>(pid));
     if (!h) {
         EXLOG_DEBUG("proc") << "killVerified: cannot open pid" << pid;
-        return false; // уже мёртв или нет прав — в любом случае НЕ убиваем
+        return false; // already dead or access denied — either way we do NOT kill
     }
     bool verified = false;
     do {
@@ -234,12 +234,12 @@ BOOL CALLBACK enumProc(HWND hwnd, LPARAM lp)
     GetWindowThreadProcessId(hwnd, &pid);
     if (static_cast<qint64>(pid) != ctx->pid)
         return TRUE;
-    // Скрытые окна (SW_HIDE) тоже нужны: иначе show/focus после «Скрыть»
-    // не находят главное окно клиента. Выбираем самое большое по площади.
+    // Hidden windows (SW_HIDE) count too: otherwise show/focus after Hide
+    // do not find the client's main window. Pick the largest by area.
     char cls[64]{};
     GetClassNameA(hwnd, cls, sizeof cls - 1);
     if (strcmp(cls, "Windows.UI.Composition.DesktopWindowContentBridge") == 0)
-        return TRUE; // UWP-мусор
+        return TRUE; // UWP leftovers
     RECT rc{};
     if (!GetWindowRect(hwnd, &rc))
         return TRUE;
@@ -273,9 +273,9 @@ bool openUriDeElevated(const QString& uri)
     if (!isElevated())
         return openUri(uri);
 
-    // Hand-off через самого себя в контексте explorer: helper-режим
-    // --open-uri делает ShellExecute уже с обычным токеном пользователя.
-    // Так URI не проходит через cmd (его '%'/'&' не экранируются повторно).
+    // Hand-off through our own exe in the explorer context: helper mode
+    // --open-uri runs ShellExecute with the normal (de-elevated) user token.
+    // Keeps the URI away from cmd (its '%'/'&' would be escaped twice).
     const QString exe = QCoreApplication::applicationFilePath();
     const QStringList args{QStringLiteral("--open-uri"), uri};
     void* handle = launchDeelevated(exe, args, QCoreApplication::applicationDirPath());
@@ -291,7 +291,7 @@ bool openUriDeElevated(const QString& uri)
     closeProcessHandle(handle);
 
     if (wait == WAIT_TIMEOUT) {
-        // Helper мог ещё не завершиться, но ShellExecute уже вызван.
+        // The helper may still be running, but ShellExecute already happened.
         EXLOG_WARN("proc") << "de-elevated URI helper did not exit in time";
         return true;
     }
@@ -322,8 +322,8 @@ bool launchPlayerDeElevated(const QString& exePath, const QString& uri)
     if (!isElevated())
         return startDirect();
 
-    // Elevated-менеджер запускает клиент через de-elevated helper, иначе
-    // Roblox/браузерный стек могут отказаться работать от администратора.
+    // An elevated manager starts the client through the de-elevated helper, else
+    // Roblox and the browser stack may refuse to run elevated.
     void* handle = launchDeelevated(
         QCoreApplication::applicationFilePath(),
         {QStringLiteral("--launch-player"), exe, uri},

@@ -14,33 +14,33 @@
 
 namespace ex::launcher {
 
-// Опции одного запуска.
+// Options for a single launch.
 struct LaunchOptions {
-    ex::model::WindowProfile window;     // [№2]
-    ex::model::RamLimit ramLimit;        // [№1]
-    bool closePreviousInstance = true;   // закрыть прошлый инстанс этого аккаунта (RAM)
-    bool rememberWindowPosition = false; // запомнить позицию при выходе
-    // Выбранный в настройках Roblox (exe или папка). Пусто — обработчик Windows.
+    ex::model::WindowProfile window;     // [#2]
+    ex::model::RamLimit ramLimit;        // [#1]
+    bool closePreviousInstance = true;   // close this account's previous instance (RAM)
+    bool rememberWindowPosition = false; // remember the position on exit
+    // Roblox picked in settings (exe or folder). Empty = the Windows handler.
     QString robloxPath;
 };
 
-// Режим массового запуска [№3].
+// Bulk launch mode [#3].
 enum class BatchMode {
-    SameServer,       // все на один сервер (задан jobId или лучший публичный)
-    DifferentServers, // каждый на свой случайный/наименее заполненный сервер
-    PrivateServer,    // все на VIP-сервер (по коду)
+    SameServer,       // everyone on one server (jobId given, or best public)
+    DifferentServers, // each on its own random/least-filled server
+    PrivateServer,    // everyone on the VIP server (by link code)
 };
 
 struct BatchRequest {
     QList<qint64> accountIds;
-    ex::model::LaunchTarget target;   // базовое назначение
+    ex::model::LaunchTarget target;   // base assignment
     BatchMode mode = BatchMode::SameServer;
     LaunchOptions options;
-    int concurrency = 3;              // одновременных запусков
-    int delaySeconds = 4;             // пауза между запусками (анти rate-limit)
+    int concurrency = 3;              // concurrent launches
+    int delaySeconds = 4;             // pause between launches (anti rate-limit)
 };
 
-// Результат одного запуска (сигналится).
+// Result of one launch (emitted as a signal).
 struct LaunchResult {
     qint64 accountId = 0;
     bool ok = false;
@@ -48,7 +48,7 @@ struct LaunchResult {
     QString launchToken;
 };
 
-// Сервис запуска: очередь + ticket + URI + атрибуция + window/ram применение.
+// Launch service: queue + ticket + URI + attribution + window/RAM application.
 class LaunchService : public QObject {
     Q_OBJECT
 public:
@@ -59,17 +59,17 @@ public:
                   QObject* parent = nullptr);
     ~LaunchService() override;
 
-    // Одиночный запуск.
+    // Single launch.
     void launch(qint64 accountId, const ex::model::LaunchTarget& target,
                 const LaunchOptions& options = {});
 
-    // Массовый запуск [№3].
+    // Bulk launch [#3].
     void launchBatch(const BatchRequest& request);
 
-    // Закрыть инстанс аккаунта (kill-verified).
+    // Close an account's instance (kill-verified).
     bool closeInstance(qint64 accountId, bool graceful = false);
 
-    // Закрыть все АТРИБУТИРОВАННЫЕ клиенты (чужие процессы не трогаем).
+    // Close all ATTRIBUTED clients (foreign processes stay untouched).
     int closeAll();
 
     void cancelQueue();
@@ -81,7 +81,7 @@ signals:
     void launchFinished(const ex::launcher::LaunchResult& result);
     void batchProgress(int done, int total);
     void batchFinished(int okCount, int failCount);
-    // 401 от Roblox: cookie аккаунта больше не действует.
+    // 401 from Roblox: the account cookie no longer works.
     void sessionInvalid(qint64 accountId, const QString& error);
 
 private:
@@ -89,7 +89,7 @@ private:
         qint64 accountId = 0;
         ex::model::LaunchTarget target;
         LaunchOptions options;
-        bool randomServer = false; // DifferentServers: выбрать сервер на запуск
+        bool randomServer = false; // DifferentServers: pick a server to launch into
     };
 
     void enqueueJobs(QList<Job> jobs);

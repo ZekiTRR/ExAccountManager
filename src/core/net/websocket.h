@@ -6,10 +6,10 @@
 
 namespace ex::net {
 
-// Минимальный WebSocket-клиент (RFC 6455) поверх QTcpSocket.
-// Нужен для CDP (Chrome DevTools Protocol) и в будущем для Nexus.
-// Поддержка: рукопожатие, текстовые фреймы, фрагментация сообщений,
-// ping/pong, маскирование исходящих фреймов (обязательно для клиента).
+// Minimal WebSocket client (RFC 6455) over QTcpSocket.
+// Needed for CDP (Chrome DevTools Protocol), later for Nexus.
+// Supports: handshake, text frames, message fragmentation,
+// ping/pong, masking of outgoing frames (mandatory for a client).
 class WebSocket : public QObject {
     Q_OBJECT
 public:
@@ -28,13 +28,13 @@ public:
     State state() const { return m_state; }
     bool isOpen() const { return m_state == State::Open; }
 
-    // Отправка текстового сообщения (один или несколько фреймов при большом
-    // размере). Возвращает false, если сокет не открыт.
+    // Send a text message (one frame, or several when the payload is large
+    // size). Returns false when the socket is not open.
     bool sendTextMessage(const QString& message);
 
-    // Разбор ОДНОГО кадра из буфера (серверные кадры без маски, клиентские
-    // с маской). Публично — для юнит-тестов. ok=false — данных мало;
-    // err непустой — протоколная ошибка.
+    // Parse ONE frame from the buffer (server frames are unmasked, client
+    // ones masked). Public for unit tests; ok=false means not enough data;
+    // a non-empty err is a protocol error.
     struct Frame {
         quint8 opcode = 0;
         bool fin = false;
@@ -63,7 +63,7 @@ private:
     QByteArray m_handshakeResponse;
     QByteArray m_rxBuffer;
 
-    // Сборка фрагментированного сообщения
+    // Assembling a fragmented message
     bool m_fragmenting = false;
     quint8 m_fragmentOpcode = 0;
     QByteArray m_fragmentBuffer;

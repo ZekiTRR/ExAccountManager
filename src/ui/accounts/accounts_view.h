@@ -33,9 +33,9 @@ class AppContext;
 class Field;
 class Segmented;
 
-// Экран аккаунтов в стиле макета: карточка списка с группами и
-// отдельная панель запуска справа. Группа выбирается кликом, звёздочка
-// переключает избранное, play на строке — быстрый запуск.
+// Accounts screen in the mockup style: list card with groups and
+// separate launch panel on the right. A group is selected by click, the star
+// toggles favourite, the row's play button launches quickly.
 class AccountsView : public QWidget {
     Q_OBJECT
 public:

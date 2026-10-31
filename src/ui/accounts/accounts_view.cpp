@@ -1212,12 +1212,16 @@ void AccountsView::showAddDialog(int mode)
         if (cookie.isEmpty())
             return;
         setStatus(tr("Валидация cookie…"), QStringLiteral("busy"));
-        m_ctx.accounts().addFromCookie(cookie, [this](bool ok, qint64, const QString& err) {
+        m_ctx.accounts().addFromCookie(cookie, [this](bool ok, qint64 accountId,
+                                                     const QString& err) {
             setStatus(ok ? tr("Аккаунт добавлен")
                          : tr("Ошибка: %1").arg(accountErrorText(err)),
                       ok ? QStringLiteral("success") : QStringLiteral("error"));
-            if (ok)
+            if (ok) {
                 reload();
+                // Аватар тянем сразу, не дожидаясь следующего запуска.
+                m_ctx.accounts().refreshAvatars({accountId});
+            }
         });
         break;
     }
@@ -1253,6 +1257,8 @@ void AccountsView::showAddDialog(int mode)
                           failed > 0 ? QStringLiteral("error")
                                      : QStringLiteral("success"));
                 reload();
+                if (added > 0)
+                    m_ctx.accounts().refreshAvatars({});
             });
         }
         if (!loginRequests.isEmpty()) {
@@ -1260,6 +1266,7 @@ void AccountsView::showAddDialog(int mode)
             loginDlg.start(loginRequests, 2);
             loginDlg.exec();
             reload();
+            m_ctx.accounts().refreshAvatars({});
         }
         break;
     }
@@ -1277,6 +1284,7 @@ void AccountsView::showAddDialog(int mode)
         loginDlg.start({request}, 1);
         loginDlg.exec();
         reload();
+        m_ctx.accounts().refreshAvatars({});
         break;
     }
     }
@@ -1431,6 +1439,8 @@ void AccountsView::launchSelection(ex::launcher::BatchMode mode)
         m_ctx.settings().get(QStringLiteral("launcher.concurrency")).toInt();
     request.delaySeconds =
         m_ctx.settings().get(QStringLiteral("launcher.delaySeconds")).toInt();
+    request.options.robloxPath =
+        m_ctx.settings().get(QStringLiteral("launcher.robloxPath")).toString();
 
     const bool customWindow = m_windowSizeCheck->isChecked();
     m_ctx.settings().set(QStringLiteral("launcher.windowSizeEnabled"), customWindow);

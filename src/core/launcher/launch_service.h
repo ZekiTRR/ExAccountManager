@@ -20,6 +20,8 @@ struct LaunchOptions {
     ex::model::RamLimit ramLimit;        // [№1]
     bool closePreviousInstance = true;   // закрыть прошлый инстанс этого аккаунта (RAM)
     bool rememberWindowPosition = false; // запомнить позицию при выходе
+    // Выбранный в настройках Roblox (exe или папка). Пусто — обработчик Windows.
+    QString robloxPath;
 };
 
 // Режим массового запуска [№3].

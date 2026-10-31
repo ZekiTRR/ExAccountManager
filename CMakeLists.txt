@@ -43,7 +43,7 @@ target_link_libraries(ex_sodium INTERFACE ${SODIUM_DIR}/x64/Release/v143/static/
 file(GLOB_RECURSE EX_PLATFORM_SOURCES CONFIGURE_DEPENDS src/platform/*.cpp)
 add_library(ex_platform STATIC ${EX_PLATFORM_SOURCES})
 target_include_directories(ex_platform PUBLIC src)
-target_link_libraries(ex_platform PUBLIC ex_sodium Qt6::Core advapi32 psapi user32 shell32 dwmapi)
+target_link_libraries(ex_platform PUBLIC ex_sodium Qt6::Core advapi32 psapi user32 shell32 dwmapi shlwapi)
 
 # ------------------------------------------------------------------ ex_core: domain logic (QtCore + QtNetwork only)
 file(GLOB_RECURSE EX_CORE_SOURCES CONFIGURE_DEPENDS src/core/*.cpp)

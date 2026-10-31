@@ -29,7 +29,8 @@ build\release\ExAccountManager.exe
 После сборки один раз: `windeployqt --release build\release\ExAccountManager.exe`
 (DLL уже задеплоены в текущей сборке — exe запускается двойным кликом).
 
-Тесты: `build\release\ex_tests.exe` (13 тестов: крипто, парсер, URI, WS-кадры, store, ledger, лимиты).
+Тесты: `build\release\ex_tests.exe` (15 тестов: крипто, парсер, URI, WS-кадры,
+store, ledger, лимиты, изоляция HTTP-cookie, поиск установок Roblox).
 
 Диагностика хранилища секретов: `build\release\vault_check.exe [пароль]`.
 
@@ -50,6 +51,9 @@ build\release\ExAccountManager.exe
   отказывается от remote debugging в повышенном контексте.
 - Запуск: roblox-player URI, CSRF, auth-ticket, share-ссылки, режимы
   «один сервер / разные сервера / VIP», без FPS-лимита (legacy-ключ снимается).
+  В настройках можно выбрать конкретный RobloxPlayerBeta.exe (или дать
+  менеджеру использовать обработчик Windows); там же показан фактический
+  зарегистрированный roblox-player клиент.
 - Инстансы: атрибуция PID→аккаунт (launchtime-токен + чтение PEB),
   kill-verified, тримминг ОЗУ, жёсткий лимит рабочего набора (RAM) без
   Job Object, CPU через Job Object с мягким fallback (приоритет/EcoQoS),

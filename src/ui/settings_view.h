@@ -3,6 +3,7 @@
 #include <QString>
 #include <QWidget>
 
+class QComboBox;
 class QLabel;
 class QScrollArea;
 
@@ -30,6 +31,10 @@ private slots:
 private:
     void buildUi();
     void markDirty();
+    void rebuildRobloxClients();
+    void updateRobloxStatus();
+    void browseRobloxFolder();
+    void onRobloxClientChanged();
 
     AppContext& m_ctx;
     QScrollArea* m_scroll = nullptr;
@@ -40,8 +45,11 @@ private:
     Switch* m_presenceEnabled = nullptr;
     Stepper* m_launchConcurrency = nullptr;
     Stepper* m_launchDelay = nullptr;
+    QComboBox* m_robloxClient = nullptr;
+    QLabel* m_robloxStatus = nullptr;
     QLabel* m_savedHint = nullptr;
     QString m_themeName = QStringLiteral("dark");
+    QString m_robloxPath;
 };
 
 } // namespace ex::ui

@@ -5,6 +5,7 @@
 #include "core/util/redact.h"
 #include "platform/windows/process.h"
 #include "platform/windows/ram_limits.h"
+#include "platform/windows/roblox_install.h"
 #include "platform/windows/window_mgr.h"
 
 #include <QJsonDocument>
@@ -373,7 +374,30 @@ void LaunchService::runJob(const Job& job)
                         }
                     }
 
-                    if (!ex::platform::openUriDeElevated(uri)) {
+                    // Выбранный в настройках клиент важнее системной
+                    // ассоциации. Если путь устарел/пропал — откатываемся
+                    // на зарегистрированный обработчик, как RM.
+                    const QString selectedExe =
+                        ex::platform::resolveRobloxPlayerPath(job.options.robloxPath);
+                    if (!job.options.robloxPath.isEmpty() && selectedExe.isEmpty()) {
+                        EXLOG_WARN("launcher")
+                            << "configured Roblox client no longer resolves;"
+                            << "using registered handler";
+                    }
+                    bool opened = false;
+                    if (!selectedExe.isEmpty()) {
+                        EXLOG_INFO("launcher") << "using configured Roblox client"
+                                               << selectedExe;
+                        opened = ex::platform::launchPlayerDeElevated(selectedExe, uri);
+                        if (!opened) {
+                            EXLOG_WARN("launcher")
+                                << "configured Roblox client failed; falling back"
+                                << "to registered handler";
+                        }
+                    }
+                    if (!opened)
+                        opened = ex::platform::openUriDeElevated(uri);
+                    if (!opened) {
                         m_registry.giveUpLaunch(job.accountId, launchToken);
                         done(false, QStringLiteral("shell-failed"), launchToken);
                         return;

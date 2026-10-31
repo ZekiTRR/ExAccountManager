@@ -11,6 +11,8 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QProcess>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
@@ -298,6 +300,54 @@ bool openUriDeElevated(const QString& uri)
         return openUri(uri);
     }
     EXLOG_INFO("proc") << "URI opened de-elevated";
+    return true;
+}
+
+bool launchPlayerDeElevated(const QString& exePath, const QString& uri)
+{
+    const QFileInfo info(exePath);
+    if (!info.isFile()
+        || info.fileName().compare(QStringLiteral("RobloxPlayerBeta.exe"),
+                                   Qt::CaseInsensitive) != 0
+        || !uri.startsWith(QStringLiteral("roblox-player:"), Qt::CaseInsensitive)) {
+        return false;
+    }
+
+    const QString exe = info.absoluteFilePath();
+    const QString workDir = info.absolutePath();
+    const auto startDirect = [&exe, &uri, &workDir]() {
+        return QProcess::startDetached(exe, {uri}, workDir);
+    };
+
+    if (!isElevated())
+        return startDirect();
+
+    // Elevated-менеджер запускает клиент через de-elevated helper, иначе
+    // Roblox/браузерный стек могут отказаться работать от администратора.
+    void* handle = launchDeelevated(
+        QCoreApplication::applicationFilePath(),
+        {QStringLiteral("--launch-player"), exe, uri},
+        QCoreApplication::applicationDirPath());
+    if (!handle) {
+        EXLOG_WARN("proc") << "de-elevated player hand-off failed, starting directly";
+        return startDirect();
+    }
+
+    const DWORD wait = WaitForSingleObject(static_cast<HANDLE>(handle), 5000);
+    DWORD exitCode = 1;
+    if (wait == WAIT_OBJECT_0)
+        GetExitCodeProcess(static_cast<HANDLE>(handle), &exitCode);
+    closeProcessHandle(handle);
+
+    if (wait == WAIT_TIMEOUT) {
+        EXLOG_WARN("proc") << "de-elevated player helper did not exit in time";
+        return true;
+    }
+    if (exitCode != 0) {
+        EXLOG_WARN("proc") << "de-elevated player helper failed:" << exitCode;
+        return startDirect();
+    }
+    EXLOG_INFO("proc") << "player started de-elevated";
     return true;
 }
 

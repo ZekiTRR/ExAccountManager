@@ -10,7 +10,9 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QFile>
+#include <QFileInfo>
 #include <QMessageBox>
+#include <QProcess>
 #include <QTimer>
 
 #include <cstdio>
@@ -85,6 +87,30 @@ int main(int argc, char* argv[])
                 reinterpret_cast<const wchar_t*>(uri.utf16()),
                 nullptr, nullptr, SW_SHOWNORMAL);
             return reinterpret_cast<qintptr>(r) > 32 ? 0 : 1;
+        }
+    }
+
+    // De-elevated запуск выбранного клиента Roblox: helper получает путь к
+    // RobloxPlayerBeta.exe и готовый roblox-player URI. Только эти два вида
+    // аргументов, чтобы helper не стал универсальным лаунчером.
+    {
+        const QStringList rawArgs = QCoreApplication::arguments();
+        const int idx = rawArgs.indexOf(QStringLiteral("--launch-player"));
+        if (idx >= 0 && idx + 2 < rawArgs.size()) {
+            const QString exe = rawArgs.at(idx + 1);
+            const QString uri = rawArgs.at(idx + 2);
+            const QFileInfo info(exe);
+            if (!uri.startsWith(QStringLiteral("roblox-player:"),
+                                Qt::CaseInsensitive)
+                || info.fileName().compare(QStringLiteral("RobloxPlayerBeta.exe"),
+                                           Qt::CaseInsensitive) != 0
+                || !info.isFile()) {
+                return 1;
+            }
+            return QProcess::startDetached(info.absoluteFilePath(), {uri},
+                                           info.absolutePath())
+                ? 0
+                : 1;
         }
     }
 

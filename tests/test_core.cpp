@@ -7,14 +7,29 @@
 #include "core/net/websocket.h"
 #include "core/roblox/bulk_import.h"
 #include "core/roblox/cdp_login.h"
+#include "core/roblox/http.h"
 #include "core/store/account_store.h"
 #include "core/store/database.h"
 #include "core/store/settings.h"
 #include "core/store/vault.h"
 #include "core/util/redact.h"
 #include "platform/windows/ram_limits.h"
+#include "platform/windows/roblox_install.h"
 
+#include <QDateTime>
+#include <QDir>
+#include <QEventLoop>
+#include <QFile>
+#include <QFileInfo>
+#include <QHostAddress>
+#include <QNetworkRequest>
 #include <QProcess>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QTimer>
+#include <QUrl>
+
+#include <memory>
 
 using namespace ex;
 
@@ -388,6 +403,107 @@ private slots:
             masked.append(static_cast<char>(plain[i] ^ mask[i]));
         QVERIFY(WebSocket::parseFrame(masked, out, consumed, err));
         QCOMPARE(out.payload, QByteArrayLiteral("ABCD"));
+    }
+
+    void httpCookieIsolation() {
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0));
+        QList<QByteArray> cookieHeaders;
+        QObject::connect(&server, &QTcpServer::newConnection, &server,
+                         [&server, &cookieHeaders]() {
+            while (QTcpSocket* socket = server.nextPendingConnection()) {
+                auto buffer = std::make_shared<QByteArray>();
+                QObject::connect(socket, &QTcpSocket::readyRead, socket,
+                                 [socket, buffer, &cookieHeaders]() {
+                    buffer->append(socket->readAll());
+                    if (!buffer->contains("\r\n\r\n"))
+                        return;
+                    for (const QByteArray& line : buffer->split('\n')) {
+                        if (line.toLower().startsWith("cookie:"))
+                            cookieHeaders.append(line.trimmed());
+                    }
+                    socket->write("HTTP/1.1 200 OK\r\n"
+                                  "Content-Length: 0\r\n"
+                                  "Set-Cookie: .ROBLOSECURITY=FROM_SERVER; Path=/\r\n"
+                                  "Connection: close\r\n\r\n");
+                    socket->disconnectFromHost();
+                });
+                QObject::connect(socket, &QTcpSocket::disconnected, socket,
+                                 &QObject::deleteLater);
+            }
+        });
+
+        ex::roblox::Http http;
+        const QUrl url(QStringLiteral("http://127.0.0.1:%1/")
+                           .arg(server.serverPort()));
+        const auto get = [&http, &url](const QByteArray& cookie) {
+            QEventLoop loop;
+            QNetworkRequest req(url);
+            req.setRawHeader(QByteArrayLiteral("Cookie"),
+                             QByteArrayLiteral(".ROBLOSECURITY=") + cookie);
+            http.get(req, [&loop](const ex::roblox::HttpResponse&) {
+                loop.quit();
+            });
+            QTimer::singleShot(5000, &loop, &QEventLoop::quit);
+            loop.exec();
+        };
+        get("FIRST");
+        get("SECOND");
+
+        QTRY_COMPARE(cookieHeaders.size(), 2);
+        QVERIFY(cookieHeaders.at(0).contains("FIRST"));
+        QVERIFY(cookieHeaders.at(1).contains("SECOND"));
+        // jar не должен подмешивать cookie предыдущего аккаунта/ответа.
+        QVERIFY(!cookieHeaders.at(1).contains("FIRST"));
+        QVERIFY(!cookieHeaders.at(1).contains("FROM_SERVER"));
+    }
+
+    void robloxInstallResolve() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QDir root(dir.path());
+        QVERIFY(root.mkpath(QStringLiteral("version-old")));
+        QVERIFY(root.mkpath(QStringLiteral("version-new")));
+
+        const QString oldExe =
+            root.filePath(QStringLiteral("version-old/RobloxPlayerBeta.exe"));
+        const QString newExe =
+            root.filePath(QStringLiteral("version-new/RobloxPlayerBeta.exe"));
+        for (const QString& path : {oldExe, newExe}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write("stub");
+            file.close();
+        }
+        QFile oldFile(oldExe);
+        QVERIFY(oldFile.open(QIODevice::ReadWrite));
+        QVERIFY(oldFile.setFileTime(QDateTime::currentDateTime().addDays(-2),
+                                    QFileDevice::FileModificationTime));
+        oldFile.close();
+        QFile newFile(newExe);
+        QVERIFY(newFile.open(QIODevice::ReadWrite));
+        QVERIFY(newFile.setFileTime(QDateTime::currentDateTime(),
+                                    QFileDevice::FileModificationTime));
+        newFile.close();
+
+        const QString expectedNew = QFileInfo(newExe).absoluteFilePath();
+        const QString expectedOld = QFileInfo(oldExe).absoluteFilePath();
+        QCOMPARE(platform::findRobloxPlayerInFolder(dir.path()), expectedNew);
+        QCOMPARE(platform::findRobloxPlayerInFolder(
+                     root.filePath(QStringLiteral("version-old"))),
+                 expectedOld);
+        QCOMPARE(platform::resolveRobloxPlayerPath(
+                     root.filePath(QStringLiteral("version-old"))),
+                 expectedOld);
+        QCOMPARE(platform::resolveRobloxPlayerPath(
+                     QStringLiteral("\"%1\"").arg(newExe)),
+                 expectedNew);
+        QVERIFY(platform::resolveRobloxPlayerPath(
+                    root.filePath(QStringLiteral("missing")))
+                    .isEmpty());
+        QVERIFY(platform::resolveRobloxPlayerPath(
+                    QStringLiteral("C:/Windows/System32/notepad.exe"))
+                    .isEmpty());
     }
 
     void analyticsLedger() {

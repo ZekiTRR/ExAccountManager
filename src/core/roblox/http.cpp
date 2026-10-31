@@ -2,13 +2,36 @@
 
 #include "core/util/log.h"
 
+#include <QNetworkCookie>
+#include <QNetworkCookieJar>
 #include <QTimer>
 
 namespace ex::roblox {
 
+namespace {
+// Cookie задаётся вручную для каждого аккаунта. Встроенный jar QNAM хранил
+// Set-Cookie предыдущего аккаунта и подмешивал его в следующий запрос —
+// вторая валидация возвращала первый аккаунт. Jar должен быть пустым.
+class EmptyCookieJar final : public QNetworkCookieJar {
+public:
+    using QNetworkCookieJar::QNetworkCookieJar;
+
+    QList<QNetworkCookie> cookiesForUrl(const QUrl&) const override
+    {
+        return {};
+    }
+
+    bool setCookiesFromUrl(const QList<QNetworkCookie>&, const QUrl&) override
+    {
+        return false;
+    }
+};
+} // namespace
+
 Http::Http(QObject* parent)
     : QObject(parent)
 {
+    m_nam.setCookieJar(new EmptyCookieJar);
     m_nam.setRedirectPolicy(QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 

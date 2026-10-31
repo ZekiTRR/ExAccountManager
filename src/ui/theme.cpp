@@ -650,9 +650,7 @@ QComboBox::down-arrow {
     image: none;
     width: 0;
     height: 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid %text2%;
+    border: none;
 }
 QComboBox QAbstractItemView {
     background: %card%;

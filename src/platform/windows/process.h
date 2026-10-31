@@ -42,6 +42,11 @@ bool openUri(const QString& uri);
 // (Roblox-клиент не любит запуск от администратора). Fallback — openUri.
 bool openUriDeElevated(const QString& uri);
 
+// Запуск конкретного RobloxPlayerBeta.exe с launch URI (без инжекта).
+// При elevated-процессе используется de-elevated helper --launch-player;
+// fallback — прямой запуск. Рабочий каталог — папка клиента (как ярлык).
+bool launchPlayerDeElevated(const QString& exePath, const QString& uri);
+
 // Очистить RobloxCookies.dat перед запуском клиента (приём RM:
 // %LOCALAPPDATA%\Roblox\LocalStorage\RobloxCookies.dat). Файл усекается до
 // нуля, чтобы Roblox не ассоциировал аккаунты между запусками.

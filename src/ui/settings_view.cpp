@@ -1,5 +1,6 @@
 #include "ui/settings_view.h"
 
+#include "platform/windows/roblox_install.h"
 #include "ui/app_context.h"
 #include "ui/material/controls.h"
 #include "ui/material/icons.h"
@@ -9,19 +10,46 @@
 
 #include <QAbstractButton>
 #include <QButtonGroup>
+#include <QComboBox>
+#include <QDateTime>
+#include <QDir>
 #include <QEnterEvent>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSet>
 #include <QSignalBlocker>
+#include <QStringList>
 #include <QVBoxLayout>
 
 namespace ex::ui {
 namespace {
+
+// QComboBox рисует CSS-треугольник как чёрный квадрат; рисуем шеврон
+// иконкой темы вместо нативной стрелки.
+class ThemedComboBox : public QComboBox {
+public:
+    using QComboBox::QComboBox;
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        QComboBox::paintEvent(event);
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        const auto& c = theme::currentPalette();
+        icons::paint(&p, QStringLiteral("chevron-down"),
+                     QRectF(width() - 20.0, (height() - 14.0) / 2.0, 14, 14),
+                     c.iconDim);
+    }
+};
 
 QWidget* settingRow(const QString& title, const QString& description,
                     QWidget* control, QWidget* parent)
@@ -246,6 +274,7 @@ SettingsView::SettingsView(AppContext& ctx, QWidget* parent)
         setting(QStringLiteral("launcher.concurrency")).toInt());
     m_launchDelay->setValue(
         setting(QStringLiteral("launcher.delaySeconds")).toInt());
+    m_robloxPath = setting(QStringLiteral("launcher.robloxPath")).toString();
     setThemeName(theme::isDark() ? QStringLiteral("dark")
                                  : QStringLiteral("light"));
 
@@ -272,6 +301,8 @@ SettingsView::SettingsView(AppContext& ctx, QWidget* parent)
         m_savedHint->setText(tr("Тема применена"));
         emit themeChangeRequested(m_themeName);
     });
+
+    rebuildRobloxClients();
 }
 
 void SettingsView::buildUi()
@@ -396,6 +427,65 @@ void SettingsView::buildUi()
     launchLayout->addSpacing(4);
     contentLayout->addWidget(launch);
 
+    // ---------------- Roblox client
+    auto* roblox = sectionCard(
+        tr("Roblox"),
+        tr("Какой клиент запускать и что зарегистрировано в Windows."),
+        content);
+    auto* robloxLayout = static_cast<QVBoxLayout*>(roblox->layout());
+
+    robloxLayout->addWidget(controls::label(tr("Установка Roblox"),
+                                            QStringLiteral("setLabel")));
+    auto* robloxDesc = controls::label(
+        tr("Выбранный клиент запускается напрямую. «Как в Windows» — через "
+           "зарегистрированный обработчик roblox-player."),
+        QStringLiteral("setDesc"));
+    robloxDesc->setWordWrap(true);
+    robloxLayout->addWidget(robloxDesc);
+    robloxLayout->addSpacing(6);
+
+    auto* robloxRow = new QHBoxLayout;
+    robloxRow->setSpacing(8);
+    m_robloxClient = new ThemedComboBox(roblox);
+    m_robloxClient->setMinimumWidth(260);
+    m_robloxClient->setMinimumHeight(36);
+    m_robloxClient->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_robloxClient->setSizeAdjustPolicy(
+        QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_robloxClient->setMinimumContentsLength(18);
+    m_robloxClient->setToolTip(
+        tr("Обнаруженные версии Roblox и ручной путь"));
+    auto* browse = controls::button(tr("Обзор…"), QStringLiteral("soft"), roblox);
+    browse->setFixedHeight(36);
+    browse->setToolTip(tr("Выбрать папку RobloxPlayerBeta.exe или Versions"));
+    auto* refresh = controls::iconButton(
+        QStringLiteral("refresh"), tr("Обновить список установок"), roblox);
+    refresh->setFixedSize(36, 36);
+    robloxRow->addWidget(m_robloxClient, 1);
+    robloxRow->addWidget(browse, 0);
+    robloxRow->addWidget(refresh, 0);
+    robloxLayout->addLayout(robloxRow);
+
+    m_robloxStatus = controls::label(QString(), QStringLiteral("pageSub"));
+    m_robloxStatus->setWordWrap(true);
+    m_robloxStatus->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    robloxLayout->addWidget(m_robloxStatus);
+    robloxLayout->addSpacing(6);
+    robloxLayout->addWidget(noteBox(
+        QStringLiteral("info"),
+        tr("Выбор действует только для запусков из менеджера — ассоциация "
+           "roblox-player в Windows не меняется."),
+        roblox));
+    robloxLayout->addSpacing(4);
+    contentLayout->addWidget(roblox);
+
+    connect(m_robloxClient, &QComboBox::currentIndexChanged, this,
+            [this](int) { onRobloxClientChanged(); });
+    connect(browse, &QPushButton::clicked, this,
+            &SettingsView::browseRobloxFolder);
+    connect(refresh, &QPushButton::clicked, this,
+            &SettingsView::rebuildRobloxClients);
+
     m_savedHint = controls::label(
         tr("Изменения сохраняются кнопкой «Сохранить»."),
         QStringLiteral("pageSub"));
@@ -420,6 +510,7 @@ void SettingsView::buildUi()
     auto* appearanceIndex = addIndex(tr("Внешний вид"), appearance);
     addIndex(tr("Мониторинг"), monitoring);
     addIndex(tr("Запуск"), launch);
+    addIndex(tr("Roblox"), roblox);
     appearanceIndex->setChecked(true);
     indexLayout->addStretch(1);
 
@@ -449,6 +540,169 @@ void SettingsView::markDirty()
         m_savedHint->setText(tr("Есть несохранённые изменения."));
 }
 
+void SettingsView::rebuildRobloxClients()
+{
+    if (!m_robloxClient)
+        return;
+
+    QString selected = m_robloxPath.trimmed();
+    const QString resolved = ex::platform::resolveRobloxPlayerPath(selected);
+    if (!resolved.isEmpty())
+        selected = resolved;
+
+    const QString registered = ex::platform::registeredRobloxPlayer();
+    const QList<ex::platform::RobloxInstallation> installs =
+        ex::platform::robloxInstallations();
+    const auto pathKey = [](const QString& path) {
+        return path.isEmpty() ? QString()
+                              : QFileInfo(path).absoluteFilePath().toLower();
+    };
+    const QString registeredKey = pathKey(registered);
+    const QString registeredDir =
+        registered.isEmpty() ? QString()
+                             : QFileInfo(registered).absolutePath().toLower();
+
+    const QSignalBlocker blocker(m_robloxClient);
+    m_robloxClient->clear();
+    m_robloxClient->addItem(tr("Как в Windows (обработчик roblox-player)"),
+                            QString());
+
+    QSet<QString> known;
+    for (const auto& install : installs) {
+        known.insert(pathKey(install.exePath));
+        QString label = install.folderName;
+        if (install.modified.isValid()) {
+            label += QStringLiteral("  ·  %1").arg(
+                install.modified.toString(QStringLiteral("dd.MM.yyyy HH:mm")));
+        }
+        if (!registeredKey.isEmpty()
+            && (pathKey(install.exePath) == registeredKey
+                || (!registeredDir.isEmpty()
+                    && QFileInfo(install.exePath).absolutePath().toLower()
+                           == registeredDir))) {
+            label += tr("  · зарегистрирован");
+        }
+        m_robloxClient->addItem(label, install.exePath);
+        m_robloxClient->setItemData(
+            m_robloxClient->count() - 1,
+            QDir::toNativeSeparators(install.exePath), Qt::ToolTipRole);
+    }
+
+    if (!selected.isEmpty() && !known.contains(pathKey(selected))) {
+        const bool valid =
+            !ex::platform::resolveRobloxPlayerPath(selected).isEmpty();
+        const QString label =
+            valid ? tr("Выбранный путь — %1")
+                        .arg(QDir::toNativeSeparators(selected))
+                  : tr("Недоступный путь — %1")
+                        .arg(QDir::toNativeSeparators(selected));
+        m_robloxClient->addItem(label, selected);
+        m_robloxClient->setItemData(
+            m_robloxClient->count() - 1,
+            QDir::toNativeSeparators(selected), Qt::ToolTipRole);
+    }
+
+    int index = 0;
+    for (int i = 0; i < m_robloxClient->count(); ++i) {
+        if (pathKey(m_robloxClient->itemData(i).toString())
+            == pathKey(selected)) {
+            index = i;
+            break;
+        }
+    }
+    m_robloxClient->setCurrentIndex(index);
+    m_robloxPath = m_robloxClient->itemData(index).toString();
+    updateRobloxStatus();
+}
+
+void SettingsView::updateRobloxStatus()
+{
+    if (!m_robloxStatus)
+        return;
+
+    const QString registered = ex::platform::registeredRobloxPlayer();
+    const QString selected = m_robloxPath.trimmed();
+    const QString resolved = ex::platform::resolveRobloxPlayerPath(selected);
+
+    QStringList lines;
+    bool warning = false;
+    if (registered.isEmpty()) {
+        lines << tr("Обработчик roblox-player в Windows не зарегистрирован.");
+        if (selected.isEmpty())
+            warning = true;
+    } else {
+        lines << tr("Сейчас Windows открывает: %1")
+                     .arg(QDir::toNativeSeparators(registered));
+    }
+
+    if (!selected.isEmpty() && resolved.isEmpty()) {
+        lines << tr("Выбранный клиент не найден — будет использован "
+                    "обработчик Windows.");
+        warning = true;
+    } else if (!resolved.isEmpty()) {
+        lines << tr("ExAccountManager запустит: %1")
+                     .arg(QDir::toNativeSeparators(resolved));
+    } else {
+        lines << tr("ExAccountManager использует обработчик Windows.");
+    }
+
+    m_robloxStatus->setText(lines.join(QLatin1Char('\n')));
+    m_robloxStatus->setToolTip(QDir::toNativeSeparators(
+        resolved.isEmpty() ? registered : resolved));
+    m_robloxStatus->setProperty(
+        "class", warning ? QStringLiteral("warningText")
+                         : QStringLiteral("pageSub"));
+    controls::repolish(m_robloxStatus);
+}
+
+void SettingsView::browseRobloxFolder()
+{
+    QString startDir;
+    const QString resolved = ex::platform::resolveRobloxPlayerPath(m_robloxPath);
+    if (!resolved.isEmpty()) {
+        startDir = QFileInfo(resolved).absolutePath();
+    } else if (const QString registered =
+                   ex::platform::registeredRobloxPlayer();
+               !registered.isEmpty()) {
+        startDir = QFileInfo(registered).absolutePath();
+    } else {
+        const auto installs = ex::platform::robloxInstallations();
+        if (!installs.isEmpty())
+            startDir = QFileInfo(installs.first().exePath).absolutePath();
+    }
+
+    const QString folder = QFileDialog::getExistingDirectory(
+        this, tr("Папка RobloxPlayerBeta.exe или Versions"), startDir,
+        QFileDialog::ShowDirsOnly);
+    if (folder.isEmpty())
+        return;
+
+    const QString exe = ex::platform::findRobloxPlayerInFolder(folder);
+    if (exe.isEmpty()) {
+        if (m_robloxStatus) {
+            m_robloxStatus->setText(
+                tr("В этой папке нет RobloxPlayerBeta.exe. Выберите папку "
+                   "установки или папку Versions."));
+            m_robloxStatus->setProperty("class", QStringLiteral("warningText"));
+            controls::repolish(m_robloxStatus);
+        }
+        return;
+    }
+
+    m_robloxPath = exe;
+    rebuildRobloxClients();
+    markDirty();
+}
+
+void SettingsView::onRobloxClientChanged()
+{
+    if (!m_robloxClient)
+        return;
+    m_robloxPath = m_robloxClient->currentData().toString();
+    updateRobloxStatus();
+    markDirty();
+}
+
 void SettingsView::save()
 {
     auto& settings = m_ctx.settings();
@@ -463,6 +717,7 @@ void SettingsView::save()
                  m_launchConcurrency->value());
     settings.set(QStringLiteral("launcher.delaySeconds"),
                  m_launchDelay->value());
+    settings.set(QStringLiteral("launcher.robloxPath"), m_robloxPath);
 
     m_ctx.monitor().setIntervalMs(m_monitorInterval->value() * 1000);
     m_savedHint->setText(tr("Сохранено только что."));

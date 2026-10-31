@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 project(ExAccountManager
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "ExAccountManager - Roblox multi-account manager"
     LANGUAGES C CXX)
 
@@ -15,7 +15,7 @@ if (MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
 
-add_compile_definitions(EX_VERSION_STRING="0.1.0" SODIUM_STATIC=1)
+add_compile_definitions(EX_VERSION_STRING="0.2.0" SODIUM_STATIC=1)
 
 # ------------------------------------------------------------------ Qt
 list(APPEND CMAKE_PREFIX_PATH "$ENV{QT_DIR}")

@@ -4,6 +4,7 @@
 #include "core/instances/instance_monitor.h"
 #include "core/instances/instance_registry.h"
 #include "core/launcher/launch_service.h"
+#include "core/launcher/multi_roblox.h"
 #include "core/roblox/account_service.h"
 #include "core/roblox/api.h"
 #include "core/store/account_store.h"
@@ -38,6 +39,7 @@ public:
     ex::launcher::LaunchService& launcher() { return *m_launchService; }
     ex::instances::InstanceRegistry& registry() { return *m_registry; }
     ex::instances::InstanceMonitor& monitor() { return *m_monitor; }
+    ex::launcher::MultiRoblox& multiRoblox() { return *m_multiRoblox; }
 
     QString vaultError() const { return m_vaultError; }
 
@@ -61,6 +63,7 @@ private:
     ex::instances::InstanceRegistry* m_registry = nullptr; // child
     ex::instances::InstanceMonitor* m_monitor = nullptr;   // child
     std::unique_ptr<ex::launcher::LaunchService> m_launchService;
+    std::unique_ptr<ex::launcher::MultiRoblox> m_multiRoblox;
 
     QByteArray m_dataKey;
     QString m_vaultError;

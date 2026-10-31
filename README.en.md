@@ -16,7 +16,7 @@ attribution and farming analytics. The UI is Russian.
 | Accounts | cookie added with validation before saving, bulk import (`user:pass[:cookie]`, cookie, file), groups, presence, avatars, revalidation, ban detection |
 | Browser login | Edge/Chrome over CDP: form autofill, HttpOnly `.ROBLOSECURITY` capture, password kept in the vault for re-login, two windows in a grid |
 | Launch | `roblox-player` URI, auth ticket, CSRF, share links; "one server / different servers / VIP" modes; pick a specific `RobloxPlayerBeta.exe` instead of the Windows handler |
-| Instances | PID→account attribution (launchtime token + PEB read), kill-verified actions, hide/focus/grid, forced window size |
+| Instances | PID→account attribution (launchtime token + PEB read), kill-verified actions, hide/focus/grid, forced window size, "Multi Roblox" option (the manager holds `ROBLOX_singletonMutex`) |
 | Limits | hard working-set cap (RAM) without a Job Object; CPU via Job Object, falling back to priority + EcoQoS |
 | Analytics | CPU/RAM per process, session ledger, play time for today / 7 / 30 days |
 | Storage | SQLite + AES-256-GCM envelope (libsodium), key in Credential Manager or Argon2id from a password, atomic writes and vault self-repair |

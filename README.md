@@ -16,7 +16,7 @@
 | Аккаунты | cookie с валидацией до сохранения, bulk-импорт (`user:pass[:cookie]`, cookie, файл), группы, presence, аватары, ревалидация, бан-детектор |
 | Вход через браузер | Edge/Chrome + CDP: автозаполнение формы, перехват HttpOnly `.ROBLOSECURITY`, пароль в vault для ре-логина, по 2 окна в сетке |
 | Запуск | `roblox-player` URI, auth-ticket, CSRF, share-ссылки; режимы «один сервер / разные / VIP»; выбор конкретного `RobloxPlayerBeta.exe` вместо обработчика Windows |
-| Инстансы | атрибуция PID→аккаунт (launchtime + чтение PEB), kill-verified, скрытие/фокус/сетка, принудительный размер окна |
+| Инстансы | атрибуция PID→аккаунт (launchtime + чтение PEB), kill-verified, скрытие/фокус/сетка, принудительный размер окна, опция «Multi Roblox» (менеджер держит `ROBLOX_singletonMutex`) |
 | Лимиты | жёсткий лимит рабочего набора (ОЗУ) без Job Object; CPU — Job Object, при отказе приоритет + EcoQoS |
 | Аналитика | CPU/RAM по процессам, ledger сессий, время фарма за сегодня / 7 / 30 дней |
 | Хранилище | SQLite + envelope AES-256-GCM (libsodium), ключ в Credential Manager или Argon2id от пароля, атомарные записи и самолечение vault |

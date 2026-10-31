@@ -33,6 +33,7 @@ private:
     void markDirty();
     void rebuildRobloxClients();
     void updateRobloxStatus();
+    void updateMultiRobloxStatus();
     void browseRobloxFolder();
     void onRobloxClientChanged();
 
@@ -45,6 +46,8 @@ private:
     Switch* m_presenceEnabled = nullptr;
     Stepper* m_launchConcurrency = nullptr;
     Stepper* m_launchDelay = nullptr;
+    Switch* m_multiRoblox = nullptr;
+    QLabel* m_multiRobloxStatus = nullptr;
     QComboBox* m_robloxClient = nullptr;
     QLabel* m_robloxStatus = nullptr;
     QLabel* m_savedHint = nullptr;

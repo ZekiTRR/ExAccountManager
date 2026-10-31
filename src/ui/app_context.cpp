@@ -52,7 +52,8 @@ bool AppContext::init()
     defaults.insert(QStringLiteral("monitor.intervalMs"), 6000);
     defaults.insert(QStringLiteral("presence.enabled"), true);
     defaults.insert(QStringLiteral("presence.intervalMs"), 60000);
-    defaults.insert(QStringLiteral("multiinstance.enabled"), true);
+    // Opt-in: holding the Roblox mutex is visible to the anti-cheat (RAM/RM ship it off).
+    defaults.insert(QStringLiteral("multiinstance.enabled"), false);
     m_settings->registerDefaults(defaults);
 
     if (!openOrCreateVault()) {
@@ -70,6 +71,11 @@ bool AppContext::init()
     m_accountService = std::make_unique<ex::roblox::AccountService>(*m_api, *m_store, m_vault, this);
     m_launchService = std::make_unique<ex::launcher::LaunchService>(
         *m_api, *m_store, m_vault, *m_registry, this);
+
+    // Multi Roblox: take the singleton mutex before any client starts.
+    m_multiRoblox = std::make_unique<ex::launcher::MultiRoblox>(this);
+    if (m_settings->get(QStringLiteral("multiinstance.enabled")).toBool())
+        m_multiRoblox->setEnabled(true);
 
     // React to account changes
     connect(m_accountService.get(), &ex::roblox::AccountService::accountAdded,

@@ -4,6 +4,7 @@
 
 #include "core/crypto/envelope.h"
 #include "core/launcher/launch_uri.h"
+#include "core/launcher/multi_roblox.h"
 #include "core/net/websocket.h"
 #include "core/roblox/bulk_import.h"
 #include "core/roblox/cdp_login.h"
@@ -577,6 +578,27 @@ private slots:
             QVERIFY(b.endsWith(QLatin1String("msedge.exe")) || b.endsWith(QLatin1String("chrome.exe")));
         // candidates is a non-empty list of standard paths
         QVERIFY(!ex::roblox::CdpLoginService::browserCandidates().isEmpty());
+    }
+
+    void multiRobloxToggle() {
+        launcher::MultiRoblox multi;
+        QVERIFY(!multi.enabled());
+        QVERIFY(!multi.active());
+        QCOMPARE(multi.state(), launcher::MultiRoblox::State::Off);
+
+        // Holding when the mutex is free, Waiting when a Roblox client owns it.
+        // Both are valid here; only Error means the port is broken.
+        const auto on = multi.setEnabled(true);
+        QVERIFY(on == launcher::MultiRoblox::State::Holding
+                || on == launcher::MultiRoblox::State::Waiting);
+        QVERIFY(multi.enabled());
+        QCOMPARE(multi.state(), on);
+
+        QVERIFY(multi.setEnabled(false) == launcher::MultiRoblox::State::Off);
+        QVERIFY(!multi.enabled());
+        // Releasing twice must not touch a mutex we no longer own.
+        multi.release();
+        QCOMPARE(multi.state(), launcher::MultiRoblox::State::Off);
     }
 };
 

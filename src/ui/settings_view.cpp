@@ -275,11 +275,21 @@ SettingsView::SettingsView(AppContext& ctx, QWidget* parent)
     m_launchDelay->setValue(
         setting(QStringLiteral("launcher.delaySeconds")).toInt());
     m_robloxPath = setting(QStringLiteral("launcher.robloxPath")).toString();
+    m_multiRoblox->setChecked(m_ctx.multiRoblox().enabled());
+    updateMultiRobloxStatus();
     setThemeName(theme::isDark() ? QStringLiteral("dark")
                                  : QStringLiteral("light"));
 
     connect(m_startMinimized, &Switch::toggled, this, [this]() { markDirty(); });
     connect(m_presenceEnabled, &Switch::toggled, this, [this]() { markDirty(); });
+    // Applied at once: holding the mutex has to change before the next launch.
+    connect(m_multiRoblox, &Switch::toggled, this, [this](bool on) {
+        m_ctx.multiRoblox().setEnabled(on);
+        markDirty();
+        updateMultiRobloxStatus();
+    });
+    connect(&m_ctx.multiRoblox(), &ex::launcher::MultiRoblox::stateChanged, this,
+            [this]() { updateMultiRobloxStatus(); });
     connect(m_monitorInterval, &Stepper::valueChanged, this,
             [this](int) { markDirty(); });
     connect(m_launchConcurrency, &Stepper::valueChanged, this,
@@ -423,6 +433,25 @@ void SettingsView::buildUi()
         QStringLiteral("shield"),
         tr("Слишком частые запуски Roblox может ограничить. "
            "Пауза 2–5 секунд работает стабильнее всего."),
+        launch));
+    addDivider(launchLayout);
+
+    // Multi Roblox (RAM's EnableMultiRbx): applied immediately, not on Save.
+    m_multiRoblox = new Switch(launch);
+    launchLayout->addWidget(settingRow(
+        tr("Multi Roblox"),
+        tr("Держать ROBLOX_singletonMutex за себя, чтобы несколько клиентов "
+           "работали одновременно."),
+        m_multiRoblox, launch));
+    m_multiRobloxStatus = controls::label(QString(), QStringLiteral("pageSub"));
+    m_multiRobloxStatus->setWordWrap(true);
+    launchLayout->addWidget(m_multiRobloxStatus);
+    launchLayout->addSpacing(6);
+    launchLayout->addWidget(noteBox(
+        QStringLiteral("alert"),
+        tr("Способ заметен анти-читу Roblox (так же делают RAM и RM), поэтому "
+           "он выключен по умолчанию. Включается сразу, кнопка «Сохранить» "
+           "нужна только чтобы запомнить выбор после перезапуска."),
         launch));
     launchLayout->addSpacing(4);
     contentLayout->addWidget(launch);
@@ -655,6 +684,40 @@ void SettingsView::updateRobloxStatus()
     controls::repolish(m_robloxStatus);
 }
 
+void SettingsView::updateMultiRobloxStatus()
+{
+    if (!m_multiRobloxStatus)
+        return;
+
+    QString text;
+    bool warning = false;
+    switch (m_ctx.multiRoblox().state()) {
+    case ex::launcher::MultiRoblox::State::Off:
+        text = tr("Выключено: клиенты делят один мьютекс Roblox между собой.");
+        break;
+    case ex::launcher::MultiRoblox::State::Holding:
+        text = tr("Мьютекс ROBLOX_singletonMutex у менеджера — можно держать "
+                  "несколько клиентов одновременно.");
+        break;
+    case ex::launcher::MultiRoblox::State::Waiting:
+        text = tr("Мьютекс занят — его держит запущенный Roblox или другой "
+                  "менеджер (например, RAM). Заберём, как только владелец "
+                  "освободит.");
+        warning = true;
+        break;
+    case ex::launcher::MultiRoblox::State::Error:
+        text = tr("Не удалось захватить мьютекс — мультиинстанс недоступен.");
+        warning = true;
+        break;
+    }
+
+    m_multiRobloxStatus->setText(text);
+    m_multiRobloxStatus->setProperty(
+        "class", warning ? QStringLiteral("warningText")
+                         : QStringLiteral("pageSub"));
+    controls::repolish(m_multiRobloxStatus);
+}
+
 void SettingsView::browseRobloxFolder()
 {
     QString startDir;
@@ -717,6 +780,8 @@ void SettingsView::save()
                  m_launchConcurrency->value());
     settings.set(QStringLiteral("launcher.delaySeconds"),
                  m_launchDelay->value());
+    settings.set(QStringLiteral("multiinstance.enabled"),
+                 m_multiRoblox->isChecked());
     settings.set(QStringLiteral("launcher.robloxPath"), m_robloxPath);
 
     m_ctx.monitor().setIntervalMs(m_monitorInterval->value() * 1000);
